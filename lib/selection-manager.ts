@@ -41,6 +41,9 @@ export class SelectionManager {
   private selectionEnd: { col: number; row: number } | null = null;
   private isSelecting: boolean = false;
   
+  // Track previous selection for clearing
+  private previousSelection: SelectionCoordinates | null = null;
+  
   // Event emitter
   private selectionChangedEmitter = new EventEmitter<void>();
   
@@ -114,11 +117,14 @@ export class SelectionManager {
   clearSelection(): void {
     if (!this.hasSelection()) return;
     
+    // Save current selection so we can force redraw of those lines
+    this.previousSelection = this.normalizeSelection();
+    
     this.selectionStart = null;
     this.selectionEnd = null;
     this.isSelecting = false;
     
-    // Trigger redraw to remove selection highlight
+    // Force redraw of previously selected lines to clear the overlay
     this.requestRender();
   }
   
@@ -138,6 +144,20 @@ export class SelectionManager {
    */
   getSelectionCoords(): SelectionCoordinates | null {
     return this.normalizeSelection();
+  }
+  
+  /**
+   * Get previous selection coordinates (for clearing old highlight)
+   */
+  getPreviousSelectionCoords(): SelectionCoordinates | null {
+    return this.previousSelection;
+  }
+  
+  /**
+   * Clear the previous selection tracking (after redraw)
+   */
+  clearPreviousSelection(): void {
+    this.previousSelection = null;
   }
   
   /**
@@ -165,15 +185,18 @@ export class SelectionManager {
   private attachEventListeners(): void {
     const canvas = this.renderer.getCanvas();
     
-    // Mouse down - start selection
+    // Mouse down - start selection or clear existing
     canvas.addEventListener('mousedown', (e: MouseEvent) => {
       if (e.button === 0) { // Left click only
-        // Clear previous selection
-        if (this.hasSelection()) {
+        const cell = this.pixelToCell(e.offsetX, e.offsetY);
+        
+        // Always clear previous selection on new click
+        const hadSelection = this.hasSelection();
+        if (hadSelection) {
           this.clearSelection();
         }
         
-        const cell = this.pixelToCell(e.offsetX, e.offsetY);
+        // Start new selection
         this.selectionStart = cell;
         this.selectionEnd = cell;
         this.isSelecting = true;
@@ -308,7 +331,15 @@ export class SelectionManager {
     
     if (navigator.clipboard) {
       navigator.clipboard.writeText(text)
-        .catch(err => console.warn('Failed to copy to clipboard:', err));
+        .then(() => {
+          console.log('✅ Copied to clipboard:', text.substring(0, 50) + (text.length > 50 ? '...' : ''));
+        })
+        .catch(err => {
+          console.error('❌ Failed to copy to clipboard:', err);
+          console.log('💡 Note: Clipboard API requires HTTPS or localhost');
+        });
+    } else {
+      console.warn('❌ Clipboard API not available (requires HTTPS or localhost)');
     }
   }
   
@@ -316,14 +347,10 @@ export class SelectionManager {
    * Request a render update (triggers selection overlay redraw)
    */
   private requestRender(): void {
-    // Force a full render to update selection overlay
-    // We need this because selection isn't tied to dirty lines
-    if (this.wasmTerm) {
-      // Trigger a render by requesting animation frame
-      // The renderer's render loop runs at 60fps and will pick this up
-      requestAnimationFrame(() => {
-        // Render happens automatically in terminal's render loop
-      });
-    }
+    // The render loop will automatically pick up the new selection state
+    // and redraw the affected lines. This happens at 60fps.
+    // 
+    // Note: When clearSelection() is called, it sets previousSelection
+    // which the renderer can use to know which lines to redraw.
   }
 }

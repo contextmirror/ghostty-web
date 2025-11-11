@@ -271,6 +271,18 @@ export class CanvasRenderer {
       }
     }
     
+    // Also mark previous selection rows for redraw (to clear old overlay)
+    if (this.selectionManager) {
+      const prevCoords = this.selectionManager.getPreviousSelectionCoords();
+      if (prevCoords) {
+        for (let row = prevCoords.startRow; row <= prevCoords.endRow; row++) {
+          selectionRows.add(row);
+        }
+        // Clear the previous selection tracking after marking for redraw
+        this.selectionManager.clearPreviousSelection();
+      }
+    }
+    
     // Track if anything was actually rendered
     let anyLinesRendered = false;
     
