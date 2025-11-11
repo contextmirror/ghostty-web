@@ -143,11 +143,14 @@ export class CanvasRenderer {
     const widthMetrics = ctx.measureText('M');
     const width = Math.ceil(widthMetrics.width);
     
-    // Measure height using ascent + descent
+    // Measure height using ascent + descent with padding for glyph overflow
     const ascent = widthMetrics.actualBoundingBoxAscent || this.fontSize * 0.8;
     const descent = widthMetrics.actualBoundingBoxDescent || this.fontSize * 0.2;
-    const height = Math.ceil(ascent + descent);
-    const baseline = Math.ceil(ascent);
+    
+    // Add 2px padding to height to account for glyphs that overflow (like 'f', 'd', 'g', 'p')
+    // and anti-aliasing pixels
+    const height = Math.ceil(ascent + descent) + 2;
+    const baseline = Math.ceil(ascent) + 1; // Offset baseline by half the padding
     
     return { width, height, baseline };
   }
@@ -203,6 +206,10 @@ export class CanvasRenderer {
     
     // Scale context to match DPI (setting canvas.width/height resets the context)
     this.ctx.scale(this.devicePixelRatio, this.devicePixelRatio);
+    
+    // Set text rendering properties for crisp text
+    this.ctx.textBaseline = 'alphabetic';
+    this.ctx.textAlign = 'left';
     
     // Fill background after resize
     this.ctx.fillStyle = this.theme.background;
@@ -308,11 +315,10 @@ export class CanvasRenderer {
       [fg, bg] = [bg, fg];
     }
     
-    // Draw background
-    if (bg.type !== 'default' || cell.inverse) {
-      this.ctx.fillStyle = this.colorToCSS(bg, true);
-      this.ctx.fillRect(cellX, cellY, cellWidth, this.metrics.height);
-    }
+    // Always draw background to clear previous character
+    // This fixes the issue where overwriting characters leaves remnants
+    this.ctx.fillStyle = this.colorToCSS(bg, true);
+    this.ctx.fillRect(cellX, cellY, cellWidth, this.metrics.height);
     
     // Skip rendering if invisible
     if (cell.invisible) {

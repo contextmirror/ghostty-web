@@ -65,7 +65,13 @@ export class Ghostty {
     } catch (e) {
       // Fall back to fetch (for browser environments)
       const response = await fetch(wasmPath);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch WASM: ${response.status} ${response.statusText}`);
+      }
       wasmBytes = await response.arrayBuffer();
+      if (wasmBytes.byteLength === 0) {
+        throw new Error(`WASM file is empty (0 bytes). Check path: ${wasmPath}`);
+      }
     }
 
     const wasmModule = await WebAssembly.instantiate(wasmBytes, {
