@@ -38,8 +38,10 @@ const sessions = new Map<any, Session>();
 /**
  * Create a PTY shell session
  */
-function createShell(cwd: string = process.cwd()) {
+function createShell(cwd: string = process.cwd(), cols: number = 80, rows: number = 24) {
   // Use 'script' command to create a real PTY
+  console.log(`Creating PTY shell with size ${cols}x${rows}`);
+  
   // script -q -c "bash" /dev/null creates a PTY running bash
   const shell = spawn('script', ['-qfc', SHELL, '/dev/null'], {
     cwd: cwd,
@@ -51,6 +53,9 @@ function createShell(cwd: string = process.cwd()) {
       PS1: '\\[\\033[1;32m\\]\\w\\[\\033[0m\\] $ ',
       // Disable some escape sequences that cause artifacts
       PROMPT_COMMAND: '',  // Disable dynamic prompt command
+      // Set terminal size via environment variables (vim and other apps read these)
+      COLUMNS: String(cols),
+      LINES: String(rows),
     },
     stdio: ['pipe', 'pipe', 'pipe'],
   });
