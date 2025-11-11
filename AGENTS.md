@@ -529,6 +529,13 @@ bun test -t "test name pattern"
 
 **Best practices for agents:**
 
+0. **ALWAYS pull from main before starting work:**
+   ```bash
+   git fetch origin
+   git merge origin/main --no-edit
+   ```
+   This ensures you're working with the latest code and all features are available.
+
 1. **Always run tests after changes:**
    ```bash
    bun test lib/buffer.test.ts
