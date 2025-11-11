@@ -535,6 +535,13 @@ export class GhosttyTerminal {
   }
 
   /**
+   * Get terminal dimensions (for IRenderable compatibility)
+   */
+  getDimensions(): { cols: number; rows: number } {
+    return { cols: this._cols, rows: this._rows };
+  }
+
+  /**
    * Get cursor position and visibility.
    */
   getCursor(): Cursor {
