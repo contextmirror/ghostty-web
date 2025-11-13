@@ -14,8 +14,6 @@ Or install from GitHub:
 npm install github:coder/ghostty-web
 ```
 
-**Note:** Git installs will auto-build during `postinstall` (requires Bun).
-
 ## Quick Start
 
 ```typescript
@@ -218,29 +216,47 @@ WebSocket Server (server/file-browser-server.ts)
 └── ghostty-vt.wasm       - Ghostty VT100 parser (122 KB)
 ```
 
-## Building
+## Building WASM
 
-Requires:
+The WASM binary is built from source, not committed to the repo.
 
-- **Zig 0.15.2+** (to build WASM)
-- **Ghostty source** (from GitHub)
+**Requirements:**
+
+- Zig 0.15.2+
+- Git submodules initialized
+
+**Build:**
 
 ```bash
-# Install Zig 0.15.2
-curl -L -o zig-0.15.2.tar.xz \
-  https://ziglang.org/download/0.15.2/zig-x86_64-linux-0.15.2.tar.xz
-tar xf zig-0.15.2.tar.xz
-sudo cp -r zig-x86_64-linux-0.15.2 /usr/local/zig-0.15.2
-sudo ln -sf /usr/local/zig-0.15.2/zig /usr/local/bin/zig
+# Initialize submodule (first time only)
+git submodule update --init --recursive
 
-# Clone Ghostty
-git clone https://github.com/ghostty-org/ghostty.git
-cd ghostty
-
-# Build WASM (~20 seconds)
-zig build lib-vt -Dtarget=wasm32-freestanding -Doptimize=ReleaseSmall
-# Output: zig-out/bin/ghostty-vt.wasm (122 KB)
+# Build WASM
+./scripts/build-wasm.sh
+# or
+bun run build:wasm
 ```
+
+**What it does:**
+
+1. Initializes `ghostty/` submodule (ghostty-org/ghostty)
+2. Applies patches from `patches/ghostty-wasm-api.patch`
+3. Builds WASM with Zig (takes ~20 seconds)
+4. Outputs `ghostty-vt.wasm` (404 KB)
+5. Reverts patch to keep submodule clean
+
+**Updating Ghostty:**
+
+```bash
+cd ghostty
+git fetch origin
+git checkout <commit-or-tag>
+cd ..
+./scripts/build-wasm.sh
+# Test, then commit the updated submodule pointer
+```
+
+**CI:** The WASM is built as part of the `test` and `build` jobs.
 
 ## Testing
 

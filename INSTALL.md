@@ -20,7 +20,7 @@ npm install github:coder/ghostty-web
 bun add github:coder/ghostty-web
 ```
 
-**Note:** When installing from git, the package automatically builds itself via a `postinstall` script. This requires Bun to be installed and may take a few seconds during installation.
+**Note:** Git installs require manually building the package first. See [Local Development](#local-development) for build instructions.
 
 ## Basic Usage
 
@@ -91,7 +91,17 @@ ws.onmessage = (event) => {
 
 ## WASM File Handling
 
-The library requires the `ghostty-vt.wasm` file at runtime. Most bundlers handle this automatically.
+The library requires the `ghostty-vt.wasm` file at runtime. When installing from npm, the WASM is pre-built and included in the package.
+
+### Local Development
+
+After cloning:
+
+```bash
+./scripts/build-wasm.sh
+```
+
+The script will automatically initialize the submodule if needed. The WASM file is generated locally and gitignored.
 
 ### Vite (Recommended)
 

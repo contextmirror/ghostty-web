@@ -46,7 +46,8 @@
   },
   "scripts": {
     "dev": "vite --port 8000",
-    "build": "bun run clean && bun run build:lib && bun run build:wasm-copy",
+    "build": "bun run clean && bun run build:wasm && bun run build:lib && bun run build:wasm-copy",
+    "build:wasm": "./scripts/build-wasm.sh",
     "build:lib": "vite build",
     "build:wasm-copy": "cp ghostty-vt.wasm dist/",
     "clean": "rm -rf dist",
@@ -57,8 +58,7 @@
     "fmt:fix": "prettier --write .",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
-    "prepublishOnly": "bun run test && bun run build",
-    "postinstall": "[ -d dist ] || bun run build"
+    "prepublishOnly": "bun run test && bun run build"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
