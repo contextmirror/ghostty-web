@@ -46,7 +46,8 @@
   },
   "scripts": {
     "dev": "vite --port 8000",
-    "build": "bun run clean && bun run build:lib && bun run build:wasm-copy",
+    "build": "bun run clean && bun run build:wasm && bun run build:lib && bun run build:wasm-copy",
+    "build:wasm": "./scripts/build-wasm.sh",
     "build:lib": "vite build",
     "build:wasm-copy": "cp ghostty-vt.wasm dist/",
     "clean": "rm -rf dist",

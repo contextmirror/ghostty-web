@@ -91,7 +91,18 @@ ws.onmessage = (event) => {
 
 ## WASM File Handling
 
-The library requires the `ghostty-vt.wasm` file at runtime. Most bundlers handle this automatically.
+The library requires the `ghostty-vt.wasm` file at runtime. When installing from npm, the WASM is pre-built and included. When installing from git, it's built during `postinstall`.
+
+### Local Development
+
+After cloning:
+
+```bash
+git submodule update --init --recursive
+./scripts/build-wasm.sh
+```
+
+The WASM file is generated locally and gitignored.
 
 ### Vite (Recommended)
 
