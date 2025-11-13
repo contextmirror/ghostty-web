@@ -67,7 +67,7 @@ jobs:
         with:
           bun-version: latest
 
-      - uses: mlugg/setup-zig@v1
+      - uses: ./.github/actions/setup-zig
         with:
           version: 0.15.2
 
@@ -92,7 +92,7 @@ jobs:
         with:
           bun-version: latest
 
-      - uses: mlugg/setup-zig@v1
+      - uses: ./.github/actions/setup-zig
         with:
           version: 0.15.2
 
