@@ -18,13 +18,7 @@ import {
 } from './types';
 
 // Re-export types for convenience
-export {
-  type GhosttyCell,
-  type Cursor,
-  type RGB,
-  CellFlags,
-  KeyEncoderOption,
-};
+export { type GhosttyCell, type Cursor, type RGB, CellFlags, KeyEncoderOption };
 
 /**
  * Main Ghostty WASM wrapper class
