@@ -1093,3 +1093,89 @@ describe('Terminal Options', () => {
     });
   });
 });
+
+describe('Buffer Access API', () => {
+  let term: Terminal;
+  let container: HTMLElement;
+
+  beforeEach(() => {
+    term = new Terminal();
+    if (typeof document !== 'undefined') {
+      container = document.createElement('div');
+      document.body.appendChild(container);
+    }
+  });
+
+  afterEach(() => {
+    term.dispose();
+    if (container && container.parentNode) {
+      container.parentNode.removeChild(container);
+    }
+  });
+
+  test('isAlternateScreen() starts false', async () => {
+    if (!container) return; // Skip if no DOM
+
+    await term.open(container);
+    expect(term.wasmTerm?.isAlternateScreen()).toBe(false);
+  });
+
+  test('isAlternateScreen() detects alternate screen mode', async () => {
+    if (!container) return; // Skip if no DOM
+
+    await term.open(container);
+
+    // Enter alternate screen (DEC Private Mode 1049 - like vim does)
+    term.write('\x1b[?1049h');
+    expect(term.wasmTerm?.isAlternateScreen()).toBe(true);
+
+    // Exit alternate screen
+    term.write('\x1b[?1049l');
+    expect(term.wasmTerm?.isAlternateScreen()).toBe(false);
+  });
+
+  test('isRowWrapped() returns false for normal line breaks', async () => {
+    if (!container) return; // Skip if no DOM
+
+    await term.open(container);
+    term.write('Line 1\r\nLine 2\r\n');
+
+    expect(term.wasmTerm?.isRowWrapped(0)).toBe(false);
+    expect(term.wasmTerm?.isRowWrapped(1)).toBe(false);
+  });
+
+  test('isRowWrapped() detects wrapped lines', async () => {
+    if (typeof document === 'undefined') return; // Skip if no DOM
+
+    // Create narrow terminal to force wrapping
+    const narrowTerm = new Terminal({ cols: 20, rows: 10 });
+    const narrowContainer = document.createElement('div');
+    await narrowTerm.open(narrowContainer);
+
+    try {
+      // Write text longer than terminal width (no newline)
+      narrowTerm.write('This is a very long line that will definitely wrap');
+
+      // First line should not be wrapped (start of line)
+      expect(narrowTerm.wasmTerm?.isRowWrapped(0)).toBe(false);
+
+      // Second line should be wrapped (continuation)
+      expect(narrowTerm.wasmTerm?.isRowWrapped(1)).toBe(true);
+    } finally {
+      narrowTerm.dispose();
+    }
+  });
+
+  test('isRowWrapped() handles edge cases', async () => {
+    if (!container) return; // Skip if no DOM
+
+    await term.open(container);
+
+    // Row 0 can never be wrapped (nothing to wrap from)
+    expect(term.wasmTerm?.isRowWrapped(0)).toBe(false);
+
+    // Out of bounds returns false
+    expect(term.wasmTerm?.isRowWrapped(-1)).toBe(false);
+    expect(term.wasmTerm?.isRowWrapped(999)).toBe(false);
+  });
+});

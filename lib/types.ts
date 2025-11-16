@@ -353,6 +353,8 @@ export interface GhosttyWasmExports extends WebAssembly.Exports {
   ghostty_terminal_get_cursor_x(terminal: TerminalHandle): number;
   ghostty_terminal_get_cursor_y(terminal: TerminalHandle): number;
   ghostty_terminal_get_cursor_visible(terminal: TerminalHandle): boolean;
+  ghostty_terminal_is_alternate_screen(terminal: TerminalHandle): boolean;
+  ghostty_terminal_is_row_wrapped(terminal: TerminalHandle, row: number): boolean;
   ghostty_terminal_is_dirty(terminal: TerminalHandle): boolean;
   ghostty_terminal_is_row_dirty(terminal: TerminalHandle, row: number): boolean;
   ghostty_terminal_clear_dirty(terminal: TerminalHandle): void;

@@ -395,6 +395,55 @@ export class GhosttyTerminal {
   }
 
   /**
+   * Check if terminal is in alternate screen buffer mode.
+   *
+   * The alternate screen is used by vim, less, htop, etc.
+   * When active, normal buffer is preserved and restored when the app exits.
+   *
+   * @returns true if in alternate screen, false if in normal screen
+   *
+   * @example
+   * ```typescript
+   * // Detect if vim is running
+   * if (term.isAlternateScreen()) {
+   *   console.log('Full-screen app is active');
+   * }
+   * ```
+   */
+  isAlternateScreen(): boolean {
+    return this.exports.ghostty_terminal_is_alternate_screen(this.handle);
+  }
+
+  /**
+   * Check if a row is wrapped from the previous row.
+   *
+   * Wrapped rows are continuations of long lines that exceeded terminal width.
+   * Used for text selection to treat wrapped lines as single logical lines.
+   *
+   * @param row Row index (0 = top visible line)
+   * @returns true if row continues from previous line, false otherwise
+   *
+   * @example
+   * ```typescript
+   * // Get full logical line including wraps
+   * let text = '';
+   * for (let row = 0; row < term.rows; row++) {
+   *   const line = term.getLine(row);
+   *   text += lineToString(line);
+   *
+   *   // Only add newline if NOT wrapped
+   *   if (!term.isRowWrapped(row + 1)) {
+   *     text += '\n';
+   *   }
+   * }
+   * ```
+   */
+  isRowWrapped(row: number): boolean {
+    if (row < 0 || row >= this._rows) return false;
+    return this.exports.ghostty_terminal_is_row_wrapped(this.handle, row);
+  }
+
+  /**
    * Get a line of cells from the visible screen.
    *
    * @param y Line number (0 = top visible line)
