@@ -113,14 +113,3 @@ jobs:
 
       - name: Build library
         run: bun run build
-
-  # Call publish workflow after all checks pass on main
-  publish:
-    name: publish to npm
-    # Only publish on main branch pushes after all checks pass
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    needs: [fmt, lint, typecheck, test, build]
-    uses: ./.github/workflows/publish.yml
-    permissions:
-      contents: read
-      id-token: write # Required for OIDC trusted publishing

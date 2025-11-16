@@ -4,8 +4,12 @@ on:
   push:
     tags:
       - 'v*'
-  workflow_call:
-    # Allow calling from other workflows (e.g., ci.yml)
+  workflow_run:
+    workflows: ["ci"]
+    types:
+      - completed
+    branches:
+      - main
 
 permissions:
   contents: read
@@ -15,6 +19,8 @@ jobs:
   publish:
     name: publish to npm
     runs-on: ubuntu-latest
+    # Only run if CI workflow succeeded (for workflow_run trigger)
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'push' }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
