@@ -1305,3 +1305,184 @@ describe('Terminal Modes', () => {
     term.dispose();
   });
 });
+
+describe('Selection with Scrollback', () => {
+  let container: HTMLElement | null = null;
+
+  beforeEach(() => {
+    if (typeof document !== 'undefined') {
+      container = document.createElement('div');
+      document.body.appendChild(container);
+    }
+  });
+
+  afterEach(() => {
+    if (container && container.parentNode) {
+      container.parentNode.removeChild(container);
+      container = null;
+    }
+  });
+
+  test('should select correct text from scrollback buffer', async () => {
+    if (!container) return;
+
+    const term = new Terminal({ cols: 80, rows: 24, scrollback: 1000 });
+    await term.open(container);
+
+    // Write 100 lines with unique identifiable content
+    // Lines 0-99, where each line has "Line XXX: content"
+    for (let i = 0; i < 100; i++) {
+      const lineNum = i.toString().padStart(3, '0');
+      term.write(`Line ${lineNum}: This is line number ${i}\r\n`);
+    }
+
+    // At this point, the screen buffer shows lines 76-99 (last 24 lines)
+    // The scrollback buffer contains lines 0-75
+
+    // Scroll up 50 lines to view older content
+    term.scrollLines(-50);
+    expect(term.viewportY).toBe(50);
+
+    // The viewport now shows:
+    // - Lines 0-23 of viewport = Lines 26-49 of the original output
+    // (because scrollback length is 76, viewportY is 50)
+    // Viewport line 0 = scrollback offset (76 - 50 + 0) = 26
+
+    // Select from viewport row 5, col 0 to viewport row 7, col 20
+    // This should select:
+    // - Viewport row 5 = Line 031 (scrollback offset 76-50+5 = 31)
+    // - Viewport row 6 = Line 032
+    // - Viewport row 7 = Line 033 (first 20 chars)
+
+    // Use the internal selection manager to set selection
+    if ((term as any).selectionManager) {
+      const selMgr = (term as any).selectionManager;
+      (selMgr as any).selectionStart = { col: 0, row: 5 };
+      (selMgr as any).selectionEnd = { col: 20, row: 7 };
+
+      const selectedText = selMgr.getSelection();
+
+      // Should contain "Line 031", "Line 032", and start of "Line 033"
+      expect(selectedText).toContain('Line 031');
+      expect(selectedText).toContain('Line 032');
+      expect(selectedText).toContain('Line 033');
+
+      // Should NOT contain current screen buffer content (lines 76-99)
+      expect(selectedText).not.toContain('Line 076');
+      expect(selectedText).not.toContain('Line 077');
+      expect(selectedText).not.toContain('Line 078');
+    }
+
+    term.dispose();
+  });
+
+  test('should select correct text when selection spans scrollback and screen', async () => {
+    if (!container) return;
+
+    const term = new Terminal({ cols: 80, rows: 24, scrollback: 1000 });
+    await term.open(container);
+
+    // Write 100 lines
+    for (let i = 0; i < 100; i++) {
+      term.write(`Line ${i.toString().padStart(3, '0')}\r\n`);
+    }
+
+    // Scroll up 10 lines (less than screen height)
+    term.scrollLines(-10);
+    expect(term.viewportY).toBe(10);
+
+    // Now viewport shows:
+    // - Top 10 rows: scrollback content (lines 66-75)
+    // - Bottom 14 rows: screen buffer content (lines 76-89, 90-99 are below viewport)
+
+    // Select from row 8 (in scrollback) to row 12 (in screen buffer)
+    if ((term as any).selectionManager) {
+      const selMgr = (term as any).selectionManager;
+      (selMgr as any).selectionStart = { col: 0, row: 8 };
+      (selMgr as any).selectionEnd = { col: 10, row: 12 };
+
+      const selectedText = selMgr.getSelection();
+
+      // Row 8 is in scrollback (scrollback offset: 76-10+8 = 74)
+      // Rows 9 is in scrollback (offset 75)
+      // Rows 10-12 are in screen (screen rows 0-2, which are lines 76-78)
+      expect(selectedText).toContain('Line 074');
+      expect(selectedText).toContain('Line 075');
+      expect(selectedText).toContain('Line 076');
+      expect(selectedText).toContain('Line 077');
+      expect(selectedText).toContain('Line 078');
+    }
+
+    term.dispose();
+  });
+
+  test('should select correct text when not scrolled (viewportY = 0)', async () => {
+    if (!container) return;
+
+    const term = new Terminal({ cols: 80, rows: 24, scrollback: 1000 });
+    await term.open(container);
+
+    // Write 100 lines
+    for (let i = 0; i < 100; i++) {
+      term.write(`Line ${i.toString().padStart(3, '0')}\r\n`);
+    }
+
+    // Don't scroll - should be at bottom (viewportY = 0)
+    expect(term.viewportY).toBe(0);
+
+    // Select from screen buffer (last visible lines)
+    if ((term as any).selectionManager) {
+      const selMgr = (term as any).selectionManager;
+      (selMgr as any).selectionStart = { col: 0, row: 0 };
+      (selMgr as any).selectionEnd = { col: 10, row: 2 };
+
+      const selectedText = selMgr.getSelection();
+
+      // Should get lines from screen buffer (lines 76-99 visible, we select first 3)
+      expect(selectedText).toContain('Line 076');
+      expect(selectedText).toContain('Line 077');
+      expect(selectedText).toContain('Line 078');
+    }
+
+    term.dispose();
+  });
+
+  test('should handle selection in pure scrollback content', async () => {
+    if (!container) return;
+
+    const term = new Terminal({ cols: 80, rows: 24, scrollback: 1000 });
+    await term.open(container);
+
+    // Write 100 lines
+    for (let i = 0; i < 100; i++) {
+      term.write(`Scrollback line ${i.toString().padStart(3, '0')}\r\n`);
+    }
+
+    // Scroll to top to view oldest content
+    term.scrollToTop();
+    const viewportY = term.viewportY;
+
+    // Should be scrolled up significantly
+    expect(viewportY).toBeGreaterThan(0);
+
+    // Select first few lines (all in scrollback)
+    if ((term as any).selectionManager) {
+      const selMgr = (term as any).selectionManager;
+      (selMgr as any).selectionStart = { col: 0, row: 0 };
+      (selMgr as any).selectionEnd = { col: 20, row: 2 };
+
+      const selectedText = selMgr.getSelection();
+
+      // Should get the oldest scrollback lines
+      expect(selectedText).toContain('Scrollback line 000');
+      expect(selectedText).toContain('Scrollback line 001');
+      expect(selectedText).toContain('Scrollback line 002');
+
+      // Should NOT get recent lines
+      expect(selectedText).not.toContain('line 099');
+      expect(selectedText).not.toContain('line 098');
+    }
+
+    term.dispose();
+  });
+});

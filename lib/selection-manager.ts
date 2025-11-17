@@ -79,10 +79,33 @@ export class SelectionManager {
     if (!coords) return '';
 
     const { startCol, startRow, endCol, endRow } = coords;
+
+    // Get viewport state to handle scrollback correctly
+    const viewportY = (this.terminal as any).viewportY || 0;
+    const scrollbackLength = this.wasmTerm.getScrollbackLength();
     let text = '';
 
     for (let row = startRow; row <= endRow; row++) {
-      const line = this.wasmTerm.getLine(row);
+      // Fetch line based on viewport position (same logic as terminal link handling)
+      // When scrolled up (viewportY > 0), we need to fetch from scrollback or screen
+      // depending on which part of the viewport the row is in
+      let line: GhosttyCell[] | null = null;
+
+      if (viewportY > 0) {
+        if (row < viewportY) {
+          // Row is in scrollback portion (top part of viewport)
+          const scrollbackOffset = scrollbackLength - viewportY + row;
+          line = this.wasmTerm.getScrollbackLine(scrollbackOffset);
+        } else {
+          // Row is in screen portion (bottom part of viewport)
+          const screenRow = row - viewportY;
+          line = this.wasmTerm.getLine(screenRow);
+        }
+      } else {
+        // Not scrolled - use screen buffer directly
+        line = this.wasmTerm.getLine(row);
+      }
+
       if (!line) continue;
 
       const colStart = row === startRow ? startCol : 0;
