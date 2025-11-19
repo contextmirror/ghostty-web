@@ -1,331 +1,138 @@
-# Ghostty Web
+# ghostty-web
 
-A web-based terminal emulator that integrates [Ghostty's](https://github.com/ghostty-org/ghostty) VT100 parser via WebAssembly.
+![ghostty](https://github.com/user-attachments/assets/8ef9161e-135d-4189-a6f6-0a644a82a5de)
 
-## Installation
+`ghostty-web` is a fully-featured web terminal built on [Ghostty's](https://github.com/ghostty-org/ghostty)
+terminal emulation core compiled to WebAssembly. By leveraging Ghostty's production-tested VT100 parser
+and state machine, `ghostty-web` delivers fast, robust terminal emulation in the browser. For many use
+cases it is a drop-in replacement for xterm.js.
 
-```bash
-npm install @coder/ghostty-web
-```
+## Live Demo
 
-Or install from GitHub:
+You can try ghostty-web yourself:
 
-```bash
-npm install github:coder/ghostty-web
-```
-
-## Quick Start
-
-```typescript
-import { Terminal } from '@coder/ghostty-web';
-
-const term = new Terminal({ cols: 80, rows: 24 });
-await term.open(document.getElementById('terminal'));
-term.write('Hello, World!\r\n');
-```
-
-See [INSTALL.md](./INSTALL.md) for complete usage guide.
-
-## Features
-
-- ✅ Full xterm.js-compatible API
-- ✅ Production-tested VT100 parser (via Ghostty)
-- ✅ ANSI colors (16, 256, RGB true color)
-- ✅ Canvas rendering at 60 FPS
-- ✅ Scrollback buffer
-- ✅ Text selection & clipboard
-- ✅ FitAddon for responsive sizing
-- ✅ TypeScript declarations included
-
-## Development & Demos
-
-### Shell Terminal Demo
-
-**Requires server**
+> [!NOTE]
+> Requires Zig and Bun, see [Development](#development)
 
 ```bash
-# Terminal 1: Start PTY shell server
+git clone https://github.com/coder/ghostty-web
+cd ghostty-web
+bun install
+bun run build # Builds the WASM module and library
+
+# Terminal 1: Start PTY Server
 cd demo/server
 bun install
 bun run start
 
-# Terminal 2: Start web server (from project root)
-bun run dev
-
-# Open: http://localhost:8000/demo/
+# Terminal 2: Start web server
+bun run start  # http://localhost:8000
 ```
 
-This provides a **real persistent shell session**! You can:
+## Getting Started
 
-- Use `cd` and it persists between commands
-- Run interactive programs like `vim`, `nano`, `top`, `htop`
-- Use tab completion and command history (↑/↓)
-- Use pipes, redirects, and background jobs
-- Access all your shell aliases and environment
-
-**Alternative: Command-by-Command Mode**
-
-For the original file browser (executes each command separately):
+Install the module via npm
 
 ```bash
-cd demo/server
-bun run file-browser
+npm install ghostty-web
 ```
 
-**Remote Access:** If you're accessing via a forwarded hostname (e.g., `mux.coder`), make sure to forward both ports:
+After install, using `ghostty-web` is as simple as
 
-- Port 8000 (web server - Vite)
-- Port 3001 (WebSocket server)
-
-The terminal will automatically connect to the WebSocket using the same hostname you're accessing the page from.
-
-**Colors Demo** (no server needed)
-
-```bash
-bun run dev
-# Open: http://localhost:8000/demo/colors-demo.html
+```html
+<!doctype html>
+<html>
+  <body>
+    <div id="terminal"></div>
+    <script type="module">
+      import { Terminal } from 'ghostty-web';
+      const term = new Terminal();
+      await term.open(document.getElementById('terminal'));
+      term.write('Hello from \x1B[1;3;31mghostty-web\x1B[0m $ ');
+    </script>
+  </body>
+</html>
 ```
 
-See all ANSI colors (16, 256, RGB) and text styles in action.
+## Features
 
-## Usage
+`ghostty-web` compiles Ghostty's core terminal emulation engine (parser, state
+machine, and screen buffer) to WebAssembly, providing:
+
+**Core Terminal:**
+
+- Full VT100/ANSI escape sequence support
+- True color (24-bit RGB) + 256 color + 16 ANSI colors
+- Text styles: bold, italic, underline, strikethrough, dim, reverse
+- Alternate screen buffer (for vim, htop, less, etc.)
+- Scrollback buffer with mouse wheel support
+
+**Input & Interaction:**
+
+- Text selection and clipboard integration
+- Mouse tracking modes
+- Kitty keyboard protocol support
+- Custom key/wheel event handlers
+
+**API & Integration:**
+
+- xterm.js-compatible API (drop-in replacement for many use cases)
+- FitAddon for responsive terminal sizing
+- Event system (onData, onResize, onBell, onScroll, etc.)
+
+**Performance:**
+
+- Canvas-based rendering at 60 FPS
+- Zero runtime dependencies (just ghostty-web + bundled WASM)
+- Parser/state machine from Ghostty
+
+## Why ghostty-web?
+
+- **Don't reimplement VT100 parsing** – it's thousands of edge cases refined over years. Instead, leverage Ghostty's battle-tested terminal emulator that's proven by thousands of daily users.
+- **Drop-in xterm.js replacement** – for many use cases, ghostty-web can replace xterm.js with minimal code changes
+- **Modern & maintained** – Built on Ghostty, an actively developed modern terminal emulator, ensuring continued improvements and bug fixes.
+
+## Usage Examples
 
 ### Basic Terminal
 
 ```typescript
-import { Terminal } from './lib/index.ts';
-import { FitAddon } from './lib/addons/fit.ts';
+import { Terminal, FitAddon } from 'ghostty-web';
 
-// Create terminal
 const term = new Terminal({
-  cols: 80,
-  rows: 24,
   cursorBlink: true,
+  fontSize: 14,
   theme: {
     background: '#1e1e1e',
     foreground: '#d4d4d4',
   },
 });
 
-// Add FitAddon for responsive sizing
 const fitAddon = new FitAddon();
 term.loadAddon(fitAddon);
 
-// Open in container
 await term.open(document.getElementById('terminal'));
 fitAddon.fit();
 
-// Write output (supports ANSI colors)
-term.write('Hello, World!\r\n');
-term.write('\x1b[1;32mGreen bold text\x1b[0m\r\n');
-
 // Handle user input
 term.onData((data) => {
+  // Send to backend/PTY
   console.log('User typed:', data);
-  // Send to backend, echo, etc.
 });
 ```
 
-### WebSocket Integration
+## Development
 
-```typescript
-const ws = new WebSocket('ws://localhost:3001/ws');
+### Prerequisites
 
-// Send user input to backend
-term.onData((data) => {
-  ws.send(JSON.stringify({ type: 'input', data }));
-});
+- [bun](https://bun.com/docs/installation)
+- [zig](https://ziglang.org/download/)
 
-// Display backend output
-ws.onmessage = (event) => {
-  const msg = JSON.parse(event.data);
-  term.write(msg.data);
-};
-```
+### Building WASM
 
-### URL Detection
-
-Ghostty-web automatically detects and makes clickable:
-
-- **OSC 8 hyperlinks** - Explicit terminal escape sequences (e.g., from `ls --hyperlink`)
-- **Plain text URLs** - Common protocols detected via regex (https, http, mailto, ssh, git, ftp, tel, magnet)
-
-URLs are detected on hover and can be opened with Ctrl/Cmd+Click.
-
-```typescript
-// URL detection works automatically after opening terminal
-await term.open(container);
-
-// URLs in output become clickable automatically
-term.write('Visit https://github.com for code\r\n');
-term.write('Contact mailto:support@example.com\r\n');
-```
-
-**Custom Link Providers**
-
-Register custom providers to detect additional link types:
-
-```typescript
-import { UrlRegexProvider } from '@coder/ghostty-web';
-
-// Create custom provider
-const myProvider = {
-  provideLinks(y, callback) {
-    // Your detection logic here
-    const links = detectCustomLinks(y);
-    callback(links);
-  },
-};
-
-// Register after opening terminal
-term.registerLinkProvider(myProvider);
-```
-
-See [AGENTS.md](AGENTS.md) for development guide and code patterns.
-
-## Why This Approach?
-
-**DON'T** re-implement VT100 parsing from scratch (years of work, thousands of edge cases).
-
-**DO** use Ghostty's proven parser:
-
-- ✅ Battle-tested by thousands of users
-- ✅ Handles all VT100/ANSI quirks correctly
-- ✅ Modern features (RGB colors, Kitty keyboard protocol)
-- ✅ Get bug fixes and updates for free
-
-**You build**: Screen buffer, rendering, UI (the "easy" parts in TypeScript)  
-**Ghostty handles**: VT100 parsing (the hard part via WASM)
-
-## Architecture
-
-```
-┌─────────────────────────────────────────┐
-│  Terminal (lib/terminal.ts)             │
-│  - Public xterm.js-compatible API       │
-│  - Event handling (onData, onResize)    │
-└───────────┬─────────────────────────────┘
-            │
-            ├─► ScreenBuffer (lib/buffer.ts)
-            │   - 2D grid, cursor, scrollback
-            │
-            ├─► VTParser (lib/vt-parser.ts)
-            │   - ANSI escape sequence parsing
-            │   └─► Ghostty WASM (SGR parser)
-            │
-            ├─► CanvasRenderer (lib/renderer.ts)
-            │   - Canvas-based rendering
-            │   - 60 FPS, supports all colors
-            │
-            └─► InputHandler (lib/input-handler.ts)
-                - Keyboard events → escape codes
-                └─► Ghostty WASM (Key encoder)
-
-WebSocket Server (server/file-browser-server.ts)
-└─► Executes shell commands (ls, cd, cat, etc.)
-```
-
-## Project Structure
-
-```
-├── lib/
-│   ├── terminal.ts       - Main Terminal class (xterm.js-compatible)
-│   ├── buffer.ts         - Screen buffer with scrollback
-│   ├── vt-parser.ts      - VT100/ANSI escape sequence parser
-│   ├── renderer.ts       - Canvas-based renderer
-│   ├── input-handler.ts  - Keyboard input handling
-│   ├── ghostty.ts        - Ghostty WASM wrapper
-│   ├── types.ts          - TypeScript type definitions
-│   ├── interfaces.ts     - xterm.js-compatible interfaces
-│   └── addons/
-│       └── fit.ts        - FitAddon for responsive sizing
-│
-├── demo/
-│   ├── index.html        - File browser terminal
-│   ├── colors-demo.html  - ANSI colors showcase
-│   └── server/
-│       ├── file-browser-server.ts - WebSocket server
-│       ├── package.json
-│       └── start.sh      - Startup script (auto-kills port conflicts)
-│
-├── docs/
-│   └── API.md            - Complete API documentation
-│
-└── ghostty-vt.wasm       - Ghostty VT100 parser (122 KB)
-```
-
-## Building WASM
-
-The WASM binary is built from source, not committed to the repo.
-
-**Requirements:**
-
-- Zig 0.15.2+
-- Git submodules initialized
-
-**Build:**
+`ghostty-web` builds a custom WASM binary from Ghostty's source with patches to expose additional
+browser-specific functionality
 
 ```bash
-# Initialize submodule (first time only)
-git submodule update --init --recursive
-
-# Build WASM
-./scripts/build-wasm.sh
-# or
-bun run build:wasm
+bun run build
 ```
-
-**What it does:**
-
-1. Initializes `ghostty/` submodule (ghostty-org/ghostty)
-2. Applies patches from `patches/ghostty-wasm-api.patch`
-3. Builds WASM with Zig (takes ~20 seconds)
-4. Outputs `ghostty-vt.wasm` (404 KB)
-5. Reverts patch to keep submodule clean
-
-**Updating Ghostty:**
-
-```bash
-cd ghostty
-git fetch origin
-git checkout <commit-or-tag>
-cd ..
-./scripts/build-wasm.sh
-# Test, then commit the updated submodule pointer
-```
-
-**CI:** The WASM is built as part of the `test` and `build` jobs.
-
-## Testing
-
-Run the test suite:
-
-```bash
-bun test                # Run all tests
-bun test --watch        # Watch mode
-bun run typecheck       # Type checking
-bun run build           # Build distribution
-```
-
-**Test Coverage:**
-
-- ✅ ScreenBuffer (63 tests, 163 assertions)
-- ✅ VTParser (45 tests)
-- ✅ CanvasRenderer (11 tests)
-- ✅ InputHandler (35 tests)
-- ✅ Terminal integration (25 tests)
-- ✅ FitAddon (12 tests)
-
-## Documentation
-
-- **[AGENTS.md](AGENTS.md)** - Development guide for AI agents and developers
-
-## Links
-
-- [Ghostty Terminal](https://github.com/ghostty-org/ghostty)
-- [libghostty-vt API](https://github.com/ghostty-org/ghostty/tree/main/include/ghostty/vt)
-- [VT100 Reference](https://vt100.net/docs/vt100-ug/)
-
-## License
-
-See cmux LICENSE (AGPL-3.0)
