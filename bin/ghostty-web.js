@@ -401,30 +401,33 @@ function handlePTYSession(ws, req) {
   const cols = parseInt(url.searchParams.get('cols')) || 80;
   const rows = parseInt(url.searchParams.get('rows')) || 24;
 
-  const shell = process.env.SHELL || (process.platform === 'win32' ? 'cmd.exe' : '/bin/bash');
+  const shell = process.env.SHELL || '/bin/bash';
 
-  // Use shell with interactive flag to get proper shell behavior
-  const shellArgs = process.platform === 'win32' ? [] : ['-i'];
-
-  const ptyProcess = spawn(shell, shellArgs, {
+  // Use 'script' command to create a real PTY (same as demo/server)
+  // This is the key to getting proper shell behavior without node-pty
+  const ptyProcess = spawn('script', ['-qfc', shell, '/dev/null'], {
     cwd: homedir(),
     env: {
       ...process.env,
       TERM: 'xterm-256color',
       COLORTERM: 'truecolor',
+      COLUMNS: String(cols),
+      LINES: String(rows),
     },
   });
-
-  // Send initial newline to trigger prompt display
-  setTimeout(() => {
-    ptyProcess.stdin.write('\n');
-  }, 100);
 
   // PTY -> WebSocket
   ptyProcess.stdout.on('data', (data) => {
     try {
-      console.log('[PTY stdout]', data.length, 'bytes');
-      ws.send(data.toString());
+      let str = data.toString();
+      
+      // Filter out OSC sequences that cause artifacts (same as demo/server)
+      str = str.replace(/\x1b\]0;[^\x07]*\x07/g, ''); // OSC 0 - icon + title
+      str = str.replace(/\x1b\]1;[^\x07]*\x07/g, ''); // OSC 1 - icon
+      str = str.replace(/\x1b\]2;[^\x07]*\x07/g, ''); // OSC 2 - title
+      
+      console.log('[PTY stdout]', str.length, 'bytes');
+      ws.send(str);
     } catch (err) {
       // WebSocket may be closed
     }
