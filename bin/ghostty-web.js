@@ -416,6 +416,12 @@ function handlePTYSession(ws, req) {
     },
   });
 
+  // Set PTY size via stty command (same as demo/server)
+  // This ensures the shell knows the correct terminal dimensions
+  setTimeout(() => {
+    ptyProcess.stdin.write(`stty cols ${cols} rows ${rows}; clear\n`);
+  }, 100);
+
   // PTY -> WebSocket
   ptyProcess.stdout.on('data', (data) => {
     try {
@@ -447,8 +453,9 @@ function handlePTYSession(ws, req) {
     try {
       const msg = JSON.parse(data);
       if (msg.type === 'resize') {
-        // Standard spawn doesn't support resize
-        // This is a limitation of the zero-dependency approach
+        // Resize PTY using stty command (same as demo/server)
+        console.log(`[PTY resize] ${msg.cols}x${msg.rows}`);
+        ptyProcess.stdin.write(`stty cols ${msg.cols} rows ${msg.rows}\n`);
       }
     } catch {
       // Not JSON, treat as input
