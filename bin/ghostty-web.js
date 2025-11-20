@@ -189,9 +189,6 @@ const HTML_TEMPLATE = `<!doctype html>
         ws.onopen = () => {
           console.log('WebSocket connected');
           updateConnectionStatus(true);
-          
-          // Send initial newline to trigger prompt
-          ws.send('\\\\n');
         };
 
         ws.onmessage = (event) => {
@@ -417,6 +414,11 @@ function handlePTYSession(ws, req) {
       COLORTERM: 'truecolor',
     },
   });
+
+  // Send initial newline to trigger prompt display
+  setTimeout(() => {
+    ptyProcess.stdin.write('\n');
+  }, 100);
 
   // PTY -> WebSocket
   ptyProcess.stdout.on('data', (data) => {
