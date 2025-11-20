@@ -176,6 +176,7 @@ const HTML_TEMPLATE = `<!doctype html>
         connectWebSocket();
 
         term.onData((data) => {
+          console.log('Sending input:', JSON.stringify(data), 'bytes:', data.length);
           if (ws && ws.readyState === WebSocket.OPEN) {
             ws.send(data);
           }
@@ -459,6 +460,7 @@ function handlePTYSession(ws, req) {
       }
     } catch {
       // Not JSON, treat as input
+      console.log('[PTY stdin] Received:', JSON.stringify(data), 'bytes:', data.length);
       try {
         ptyProcess.stdin.write(data);
       } catch (err) {
