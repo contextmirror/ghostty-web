@@ -189,9 +189,13 @@ const HTML_TEMPLATE = `<!doctype html>
         ws.onopen = () => {
           console.log('WebSocket connected');
           updateConnectionStatus(true);
+          
+          // Send initial newline to trigger prompt
+          ws.send('\n');
         };
 
         ws.onmessage = (event) => {
+          console.log('Received data:', event.data.length, 'bytes');
           term.write(event.data);
         };
 
@@ -417,6 +421,7 @@ function handlePTYSession(ws, req) {
   // PTY -> WebSocket
   ptyProcess.stdout.on('data', (data) => {
     try {
+      console.log('[PTY stdout]', data.length, 'bytes');
       ws.send(data.toString());
     } catch (err) {
       // WebSocket may be closed
@@ -425,6 +430,7 @@ function handlePTYSession(ws, req) {
 
   ptyProcess.stderr.on('data', (data) => {
     try {
+      console.log('[PTY stderr]', data.length, 'bytes');
       ws.send(data.toString());
     } catch (err) {
       // WebSocket may be closed
