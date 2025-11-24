@@ -83,6 +83,13 @@ export interface IKeyEvent {
   domEvent: KeyboardEvent;
 }
 
+/**
+ * Unicode version provider (xterm.js compatibility)
+ */
+export interface IUnicodeVersionProvider {
+  readonly activeVersion: string;
+}
+
 // ============================================================================
 // Buffer API Interfaces (xterm.js compatibility)
 // ============================================================================
