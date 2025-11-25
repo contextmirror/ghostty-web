@@ -119,42 +119,34 @@ export class SelectionManager {
    * Get the selected text as a string
    */
   getSelection(): string {
-    const coords = this.normalizeSelection();
-    if (!coords) return '';
+    if (!this.selectionStart || !this.selectionEnd) return '';
 
-    const { startCol, startRow, endCol, endRow } = coords;
+    // Get absolute row coordinates (not clamped to viewport)
+    let { col: startCol, absoluteRow: startAbsRow } = this.selectionStart;
+    let { col: endCol, absoluteRow: endAbsRow } = this.selectionEnd;
 
-    // Get viewport state to handle scrollback correctly
-    // Note: viewportY can be fractional during smooth scrolling, but the renderer
-    // always uses Math.floor(viewportY) when mapping viewport rows to scrollback
-    // vs screen. We mirror that logic here so copied text matches the visual
-    // selection exactly.
-    const rawViewportY =
-      typeof (this.terminal as any).getViewportY === 'function'
-        ? (this.terminal as any).getViewportY()
-        : (this.terminal as any).viewportY || 0;
-    const viewportY = Math.max(0, Math.floor(rawViewportY));
+    // Swap if selection goes backwards
+    if (startAbsRow > endAbsRow || (startAbsRow === endAbsRow && startCol > endCol)) {
+      [startCol, endCol] = [endCol, startCol];
+      [startAbsRow, endAbsRow] = [endAbsRow, startAbsRow];
+    }
+
     const scrollbackLength = this.wasmTerm.getScrollbackLength();
     let text = '';
 
-    for (let row = startRow; row <= endRow; row++) {
-      // Fetch line based on viewport position (same logic as terminal link handling)
-      // When scrolled up (viewportY > 0), we need to fetch from scrollback or screen
-      // depending on which part of the viewport the row is in
+    for (let absRow = startAbsRow; absRow <= endAbsRow; absRow++) {
+      // Fetch line based on absolute row position
+      // Absolute row < scrollbackLength means it's in scrollback
+      // Absolute row >= scrollbackLength means it's in the screen buffer
       let line: GhosttyCell[] | null = null;
 
-      if (viewportY > 0) {
-        if (row < viewportY) {
-          // Row is in scrollback portion (top part of viewport)
-          const scrollbackOffset = scrollbackLength - viewportY + row;
-          line = this.wasmTerm.getScrollbackLine(scrollbackOffset);
-        } else {
-          // Row is in visible screen portion (bottom part of viewport)
-          line = this.wasmTerm.getLine(row - viewportY);
-        }
+      if (absRow < scrollbackLength) {
+        // Row is in scrollback
+        line = this.wasmTerm.getScrollbackLine(absRow);
       } else {
-        // Not scrolled - use screen buffer directly
-        line = this.wasmTerm.getLine(row);
+        // Row is in screen buffer
+        const screenRow = absRow - scrollbackLength;
+        line = this.wasmTerm.getLine(screenRow);
       }
 
       if (!line) continue;
@@ -163,8 +155,8 @@ export class SelectionManager {
       let lastNonEmpty = -1;
 
       // Determine column range for this row
-      const colStart = row === startRow ? startCol : 0;
-      const colEnd = row === endRow ? endCol : line.length - 1;
+      const colStart = absRow === startAbsRow ? startCol : 0;
+      const colEnd = absRow === endAbsRow ? endCol : line.length - 1;
 
       // Build the line text
       let lineText = '';
@@ -191,7 +183,7 @@ export class SelectionManager {
       text += lineText;
 
       // Add newline between rows (but not after the last row)
-      if (row < endRow) {
+      if (absRow < endAbsRow) {
         text += '\n';
       }
     }
