@@ -79,7 +79,6 @@ machine, and screen buffer) to WebAssembly, providing:
 
 - Text selection and clipboard integration
 - Mouse tracking modes
-- Kitty keyboard protocol support
 - Custom key/wheel event handlers
 
 **API & Integration:**
