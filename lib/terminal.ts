@@ -260,7 +260,7 @@ export class Terminal implements ITerminalCore {
       parent.setAttribute('aria-multiline', 'true');
 
       // Create WASM terminal with current dimensions
-      this.wasmTerm = this.ghostty!.createTerminal(this.cols, this.rows);;
+      this.wasmTerm = this.ghostty!.createTerminal(this.cols, this.rows);
 
       // Create canvas element
       this.canvas = document.createElement('canvas');
