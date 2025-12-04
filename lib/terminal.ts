@@ -143,7 +143,7 @@ export class Terminal implements ITerminalCore {
       cursorBlink: options.cursorBlink ?? false,
       cursorStyle: options.cursorStyle ?? 'block',
       theme: options.theme ?? {},
-      scrollback: options.scrollback ?? 1000,
+      scrollback: options.scrollback ?? 10000,
       fontSize: options.fontSize ?? 15,
       fontFamily: options.fontFamily ?? 'monospace',
       allowTransparency: options.allowTransparency ?? false,
@@ -290,7 +290,7 @@ export class Terminal implements ITerminalCore {
     const scrollback = this.options.scrollback;
 
     // If no theme and default scrollback, use defaults
-    if (!theme && scrollback === 1000) {
+    if (!theme && scrollback === 10000) {
       return undefined;
     }
 
@@ -1697,6 +1697,11 @@ export class Terminal implements ITerminalCore {
       const progress = Math.min(elapsed / this.SCROLLBAR_FADE_DURATION_MS, 1);
       this.scrollbarOpacity = progress;
 
+      // Trigger render to show updated opacity
+      if (this.renderer && this.wasmTerm) {
+        this.renderer.render(this.wasmTerm, false, this.viewportY, this, this.scrollbarOpacity);
+      }
+
       if (progress < 1) {
         requestAnimationFrame(animate);
       }
@@ -1715,11 +1720,20 @@ export class Terminal implements ITerminalCore {
       const progress = Math.min(elapsed / this.SCROLLBAR_FADE_DURATION_MS, 1);
       this.scrollbarOpacity = startOpacity * (1 - progress);
 
+      // Trigger render to show updated opacity
+      if (this.renderer && this.wasmTerm) {
+        this.renderer.render(this.wasmTerm, false, this.viewportY, this, this.scrollbarOpacity);
+      }
+
       if (progress < 1) {
         requestAnimationFrame(animate);
       } else {
         this.scrollbarVisible = false;
         this.scrollbarOpacity = 0;
+        // Final render to clear scrollbar completely
+        if (this.renderer && this.wasmTerm) {
+          this.renderer.render(this.wasmTerm, false, this.viewportY, this, 0);
+        }
       }
     };
     animate();

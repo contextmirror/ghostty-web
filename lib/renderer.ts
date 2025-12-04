@@ -65,8 +65,10 @@ export const DEFAULT_THEME: Required<ITheme> = {
   background: '#1e1e1e',
   cursor: '#ffffff',
   cursorAccent: '#1e1e1e',
-  selectionBackground: 'rgba(255, 255, 255, 0.3)',
-  selectionForeground: '#d4d4d4',
+  // Selection colors: solid colors that replace cell bg/fg when selected
+  // Using Ghostty's approach: selection bg = default fg, selection fg = default bg
+  selectionBackground: '#d4d4d4',
+  selectionForeground: '#1e1e1e',
   black: '#000000',
   red: '#cd3131',
   green: '#0dbc79',
@@ -112,8 +114,15 @@ export class CanvasRenderer {
   // Current buffer being rendered (for grapheme lookups)
   private currentBuffer: IRenderable | null = null;
 
-  // Selection manager (for rendering selection overlay)
+  // Selection manager (for rendering selection)
   private selectionManager?: SelectionManager;
+  // Cached selection coordinates for current render pass (viewport-relative)
+  private currentSelectionCoords: {
+    startCol: number;
+    startRow: number;
+    endCol: number;
+    endRow: number;
+  } | null = null;
 
   // Link rendering state
   private hoveredHyperlinkId: number = 0;
@@ -319,13 +328,15 @@ export class CanvasRenderer {
     const hasSelection = this.selectionManager && this.selectionManager.hasSelection();
     const selectionRows = new Set<number>();
 
+    // Cache selection coordinates for use during cell rendering
+    // This is used by isInSelection() to determine if a cell needs selection colors
+    this.currentSelectionCoords = hasSelection ? this.selectionManager!.getSelectionCoords() : null;
+
     // Mark current selection rows for redraw (includes programmatic selections)
-    if (hasSelection) {
-      const coords = this.selectionManager!.getSelectionCoords();
-      if (coords) {
-        for (let row = coords.startRow; row <= coords.endRow; row++) {
-          selectionRows.add(row);
-        }
+    if (this.currentSelectionCoords) {
+      const coords = this.currentSelectionCoords;
+      for (let row = coords.startRow; row <= coords.endRow; row++) {
+        selectionRows.add(row);
       }
     }
 
@@ -467,12 +478,8 @@ export class CanvasRenderer {
       }
     }
 
-    // Render selection highlight AFTER all text (so it overlays)
-    // Only render if we actually rendered some lines
-    if (hasSelection && anyLinesRendered) {
-      // Draw selection overlay - only when we've redrawn the underlying text
-      this.renderSelection(dims.cols);
-    }
+    // Selection highlighting is now integrated into renderCellBackground/renderCellText
+    // No separate overlay pass needed - this fixes z-order issues with complex glyphs
 
     // Link underlines are drawn during cell rendering (see renderCell)
 
@@ -535,11 +542,23 @@ export class CanvasRenderer {
 
   /**
    * Render a cell's background only (Pass 1 of two-pass rendering)
+   * Selection highlighting is integrated here to avoid z-order issues with
+   * complex glyphs (like Devanagari) that extend outside their cell bounds.
    */
   private renderCellBackground(cell: GhosttyCell, x: number, y: number): void {
     const cellX = x * this.metrics.width;
     const cellY = y * this.metrics.height;
     const cellWidth = this.metrics.width * cell.width;
+
+    // Check if this cell is selected
+    const isSelected = this.isInSelection(x, y);
+
+    if (isSelected) {
+      // Draw selection background (solid color, not overlay)
+      this.ctx.fillStyle = this.theme.selectionBackground;
+      this.ctx.fillRect(cellX, cellY, cellWidth, this.metrics.height);
+      return; // Selection background replaces cell background
+    }
 
     // Extract background color and handle inverse
     let bg_r = cell.bg_r,
@@ -564,6 +583,7 @@ export class CanvasRenderer {
 
   /**
    * Render a cell's text and decorations (Pass 2 of two-pass rendering)
+   * Selection foreground color is applied here to match the selection background.
    */
   private renderCellText(cell: GhosttyCell, x: number, y: number): void {
     const cellX = x * this.metrics.width;
@@ -575,17 +595,8 @@ export class CanvasRenderer {
       return;
     }
 
-    // Extract colors and handle inverse
-    let fg_r = cell.fg_r,
-      fg_g = cell.fg_g,
-      fg_b = cell.fg_b;
-
-    if (cell.flags & CellFlags.INVERSE) {
-      // When inverted, foreground becomes background
-      fg_r = cell.bg_r;
-      fg_g = cell.bg_g;
-      fg_b = cell.bg_b;
-    }
+    // Check if this cell is selected
+    const isSelected = this.isInSelection(x, y);
 
     // Set text style
     let fontStyle = '';
@@ -593,8 +604,24 @@ export class CanvasRenderer {
     if (cell.flags & CellFlags.BOLD) fontStyle += 'bold ';
     this.ctx.font = `${fontStyle}${this.fontSize}px ${this.fontFamily}`;
 
-    // Set text color
-    this.ctx.fillStyle = this.rgbToCSS(fg_r, fg_g, fg_b);
+    // Set text color - use selection foreground if selected
+    if (isSelected) {
+      this.ctx.fillStyle = this.theme.selectionForeground;
+    } else {
+      // Extract colors and handle inverse
+      let fg_r = cell.fg_r,
+        fg_g = cell.fg_g,
+        fg_b = cell.fg_b;
+
+      if (cell.flags & CellFlags.INVERSE) {
+        // When inverted, foreground becomes background
+        fg_r = cell.bg_r;
+        fg_g = cell.bg_g;
+        fg_b = cell.bg_b;
+      }
+
+      this.ctx.fillStyle = this.rgbToCSS(fg_r, fg_g, fg_b);
+    }
 
     // Apply faint effect
     if (cell.flags & CellFlags.FAINT) {
@@ -816,9 +843,6 @@ export class CanvasRenderer {
     visibleRows: number,
     opacity: number = 1
   ): void {
-    // Don't render if fully transparent or no scrollback
-    if (opacity <= 0 || scrollbackLength === 0) return;
-
     const ctx = this.ctx;
     const canvasHeight = this.canvas.height / this.devicePixelRatio;
     const canvasWidth = this.canvas.width / this.devicePixelRatio;
@@ -828,6 +852,13 @@ export class CanvasRenderer {
     const scrollbarX = canvasWidth - scrollbarWidth - 4;
     const scrollbarPadding = 4;
     const scrollbarTrackHeight = canvasHeight - scrollbarPadding * 2;
+
+    // Always clear the scrollbar area first (fixes ghosting when fading out)
+    ctx.fillStyle = this.theme.background;
+    ctx.fillRect(scrollbarX - 2, 0, scrollbarWidth + 6, canvasHeight);
+
+    // Don't draw scrollbar if fully transparent or no scrollback
+    if (opacity <= 0 || scrollbackLength === 0) return;
 
     // Calculate scrollbar thumb size and position
     const totalLines = scrollbackLength + visibleRows;
@@ -859,10 +890,40 @@ export class CanvasRenderer {
   }
 
   /**
-   * Set selection manager (for rendering selection overlay)
+   * Set selection manager (for rendering selection)
    */
   public setSelectionManager(manager: SelectionManager): void {
     this.selectionManager = manager;
+  }
+
+  /**
+   * Check if a cell at (x, y) is within the current selection.
+   * Uses cached selection coordinates for performance.
+   */
+  private isInSelection(x: number, y: number): boolean {
+    const sel = this.currentSelectionCoords;
+    if (!sel) return false;
+
+    const { startCol, startRow, endCol, endRow } = sel;
+
+    // Single line selection
+    if (startRow === endRow) {
+      return y === startRow && x >= startCol && x <= endCol;
+    }
+
+    // Multi-line selection
+    if (y === startRow) {
+      // First line: from startCol to end of line
+      return x >= startCol;
+    } else if (y === endRow) {
+      // Last line: from start of line to endCol
+      return x <= endCol;
+    } else if (y > startRow && y < endRow) {
+      // Middle lines: entire line is selected
+      return true;
+    }
+
+    return false;
   }
 
   /**
@@ -907,35 +968,6 @@ export class CanvasRenderer {
   public clear(): void {
     this.ctx.fillStyle = this.theme.background;
     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-  }
-
-  /**
-   * Render selection overlay
-   */
-  private renderSelection(cols: number): void {
-    const coords = this.selectionManager!.getSelectionCoords();
-    if (!coords) return;
-
-    const { startCol, startRow, endCol, endRow } = coords;
-
-    // Use semi-transparent fill for selection
-    this.ctx.save();
-    this.ctx.fillStyle = this.theme.selectionBackground;
-    this.ctx.globalAlpha = 0.5; // Make it semi-transparent so text is visible
-
-    for (let row = startRow; row <= endRow; row++) {
-      const colStart = row === startRow ? startCol : 0;
-      const colEnd = row === endRow ? endCol : cols - 1;
-
-      const x = colStart * this.metrics.width;
-      const y = row * this.metrics.height;
-      const width = (colEnd - colStart + 1) * this.metrics.width;
-      const height = this.metrics.height;
-
-      this.ctx.fillRect(x, y, width, height);
-    }
-
-    this.ctx.restore();
   }
 
   /**

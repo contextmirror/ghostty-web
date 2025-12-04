@@ -44,8 +44,10 @@ describe('CanvasRenderer', () => {
     });
 
     test('has selection colors', () => {
-      expect(DEFAULT_THEME.selectionBackground).toBe('rgba(255, 255, 255, 0.3)');
-      expect(DEFAULT_THEME.selectionForeground).toBe('#d4d4d4');
+      // Selection colors are now solid (not semi-transparent overlay)
+      // Ghostty-style: selection bg = foreground color, selection fg = background color
+      expect(DEFAULT_THEME.selectionBackground).toBe('#d4d4d4');
+      expect(DEFAULT_THEME.selectionForeground).toBe('#1e1e1e');
     });
   });
 

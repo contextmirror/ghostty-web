@@ -6,7 +6,7 @@
  * - Double-click word selection
  * - Text extraction from terminal buffer
  * - Automatic clipboard copy
- * - Visual selection overlay (rendered by CanvasRenderer)
+ * - Visual selection highlighting (integrated into CanvasRenderer cell rendering)
  * - Auto-scroll during drag selection
  */
 
