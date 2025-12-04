@@ -435,9 +435,6 @@ export class CanvasRenderer {
 
       if (needsRender) {
         rowsToRender.add(y);
-        // Include adjacent rows to handle glyph overflow
-        if (y > 0) rowsToRender.add(y - 1);
-        if (y < dims.rows - 1) rowsToRender.add(y + 1);
       }
     }
 

@@ -490,6 +490,20 @@ export class GhosttyTerminal {
     return viewport.slice(start, start + this._cols).map((cell) => ({ ...cell }));
   }
 
+  /**
+   * Get line without copying - for read-only access (faster).
+   * WARNING: Returns a view into the cell pool - do not store or modify!
+   * The returned array is only valid until the next getViewport/getLineRef call.
+   */
+  getLineRef(y: number): GhosttyCell[] | null {
+    if (y < 0 || y >= this._rows) return null;
+    this.update();
+    const viewport = this.getViewport();
+    const start = y * this._cols;
+    // Return slice without copying - caller must not store reference
+    return viewport.slice(start, start + this._cols);
+  }
+
   /** For compatibility with old API */
   isDirty(): boolean {
     return this.update() !== DirtyState.NONE;

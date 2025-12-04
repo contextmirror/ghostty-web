@@ -189,7 +189,8 @@ export class Buffer implements IBuffer {
     } else {
       // Accessing visible screen
       lineNumber = this.bufferType === 'normal' ? y - scrollbackLength : y;
-      cells = wasmTerm.getLine(lineNumber);
+      // Use getLineRef for faster read-only access (avoids deep copy)
+      cells = wasmTerm.getLineRef(lineNumber);
       isWrapped = wasmTerm.isRowWrapped(lineNumber);
     }
 
@@ -268,15 +269,19 @@ export class BufferLine implements IBufferLine {
     const start = Math.max(0, Math.min(startColumn, this._length));
     const end = Math.max(start, Math.min(endColumn, this._length));
 
-    let result = '';
+    // Optimized path: work directly with cells array to avoid object allocations
+    // This is a hot path for buffer reading, so we avoid creating BufferCell objects
+    const parts: string[] = [];
     for (let x = start; x < end; x++) {
-      const cell = this.getCell(x);
-      if (cell) {
-        const chars = cell.getChars();
-        result += chars;
+      if (x < this.cells.length) {
+        const codepoint = this.cells[x].codepoint;
+        if (codepoint > 0 && codepoint <= 0x10ffff && !(codepoint >= 0xd800 && codepoint <= 0xdfff)) {
+          parts.push(String.fromCodePoint(codepoint));
+        }
       }
     }
 
+    let result = parts.join('');
     if (trimRight) {
       result = result.trimEnd();
     }

@@ -70,17 +70,16 @@ const withTerminals = async (fn: (term: GhosttyTerminal | XTerm) => Promise<void
 };
 
 const throughput = async (prefix: string, data: Record<string, Uint8Array | string>) => {
-  await Promise.all(
-    Object.entries(data).map(async ([name, data]) => {
-      await group(`${prefix}: ${name}`, async () => {
-        await withTerminals(async (term) => {
-          await new Promise<void>((resolve) => {
-            term.write(data, resolve);
-          });
+  // Run sequentially to avoid variance from parallel execution
+  for (const [name, testData] of Object.entries(data)) {
+    await group(`${prefix}: ${name}`, async () => {
+      await withTerminals(async (term) => {
+        await new Promise<void>((resolve) => {
+          term.write(testData, resolve);
         });
       });
-    })
-  );
+    });
+  }
 };
 
 await throughput('raw bytes', {
