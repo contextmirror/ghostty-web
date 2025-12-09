@@ -12,7 +12,7 @@ on:
       - main
 
 permissions:
-  contents: read
+  contents: write # Required for creating GitHub releases
   id-token: write # Required for OIDC trusted publishing
 
 jobs:
@@ -145,6 +145,12 @@ jobs:
         if: steps.check-exists.outputs.exists == 'true' && steps.detect.outputs.is_tag != 'true'
         run: |
           echo "⏭️ Pre-release version already exists, skipping"
+
+      - name: Create GitHub Release
+        if: steps.detect.outputs.is_tag == 'true'
+        run: gh release create "${{ steps.detect.outputs.trigger_name }}" --title "${{ steps.detect.outputs.trigger_name }}" --generate-notes --verify-tag
+        env:
+          GH_TOKEN: ${{ github.token }}
 
   publish-demo:
     name: publish @ghostty-web/demo to npm
