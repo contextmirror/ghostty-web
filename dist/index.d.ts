@@ -13,6 +13,8 @@ export declare class CanvasRenderer {
     private cursorBlinkInterval?;
     private lastCursorPosition;
     private cursorStableFrames;
+    private static readonly CURSOR_STABLE_THRESHOLD;
+    private static readonly BULK_DIRTY_THRESHOLD;
     private lastViewportY;
     private currentBuffer;
     private selectionManager?;

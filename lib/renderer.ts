@@ -112,8 +112,11 @@ export class CanvasRenderer {
   // TUI apps (like Claude Code) reposition the cursor many times per frame to
   // update status bars, input fields, and content. Without debouncing, the cursor
   // briefly renders at intermediate positions, creating phantom "ghost" cursors.
-  // We only render the cursor after it's been at the same position for 1+ frames.
-  private cursorStableFrames: number = 2; // Start stable so cursor shows on first render
+  // We only render the cursor after it's been at the same position for 2+ frames
+  // AND fewer than BULK_DIRTY_THRESHOLD rows changed (bulk updates = TUI redraw).
+  private cursorStableFrames: number = 3; // Start stable so cursor shows on first render
+  private static readonly CURSOR_STABLE_THRESHOLD = 2; // Frames cursor must be still
+  private static readonly BULK_DIRTY_THRESHOLD = 3; // Rows changed = bulk TUI update
 
   // Viewport tracking (for scrolling)
   private lastViewportY: number = 0;
@@ -328,26 +331,27 @@ export class CanvasRenderer {
     if (cursorMoved) {
       this.cursorStableFrames = 0;
 
-      // Redraw cursor lines to clear old cursor
-      if (!forceAll && !buffer.isRowDirty(cursor.y)) {
-        const line = buffer.getLine(cursor.y);
-        if (line) {
-          this.renderLine(line, cursor.y, dims.cols);
+      // Redraw the OLD cursor line to erase the cursor from its previous position
+      if (!forceAll && !buffer.isRowDirty(this.lastCursorPosition.y)) {
+        const oldLine = buffer.getLine(this.lastCursorPosition.y);
+        if (oldLine) {
+          this.renderLine(oldLine, this.lastCursorPosition.y, dims.cols);
         }
       }
-      if (this.lastCursorPosition.y !== cursor.y) {
-        if (!forceAll && !buffer.isRowDirty(this.lastCursorPosition.y)) {
-          const line = buffer.getLine(this.lastCursorPosition.y);
-          if (line) {
-            this.renderLine(line, this.lastCursorPosition.y, dims.cols);
+      // Also redraw the NEW cursor line (but don't paint cursor yet — not stable)
+      if (cursor.y !== this.lastCursorPosition.y) {
+        if (!forceAll && !buffer.isRowDirty(cursor.y)) {
+          const newLine = buffer.getLine(cursor.y);
+          if (newLine) {
+            this.renderLine(newLine, cursor.y, dims.cols);
           }
         }
       }
     } else {
       this.cursorStableFrames++;
 
-      // Cursor just became stable — redraw its line so we can paint the cursor on it
-      if (this.cursorStableFrames === 1) {
+      // Cursor just crossed the stability threshold — redraw its line so we paint the cursor
+      if (this.cursorStableFrames === CanvasRenderer.CURSOR_STABLE_THRESHOLD) {
         if (!forceAll && !buffer.isRowDirty(cursor.y)) {
           const line = buffer.getLine(cursor.y);
           if (line) {
@@ -528,8 +532,17 @@ export class CanvasRenderer {
 
     // Render cursor — only when stable (debounced) to prevent ghost artifacts.
     // During rapid TUI updates the cursor passes through intermediate positions;
-    // we skip rendering until it's been at the same position for 1+ frames.
-    if (viewportY === 0 && cursor.visible && this.cursorVisible && this.cursorStableFrames >= 1) {
+    // we skip rendering until BOTH conditions are met:
+    //   1. Cursor has been at the same position for CURSOR_STABLE_THRESHOLD frames
+    //   2. Fewer than BULK_DIRTY_THRESHOLD rows changed (not in a bulk TUI redraw)
+    const isBulkUpdate = rowsToRender.size >= CanvasRenderer.BULK_DIRTY_THRESHOLD;
+    if (isBulkUpdate) {
+      // During bulk updates, reset stability — cursor position is unreliable
+      this.cursorStableFrames = 0;
+    }
+    if (viewportY === 0 && cursor.visible && this.cursorVisible
+        && this.cursorStableFrames >= CanvasRenderer.CURSOR_STABLE_THRESHOLD
+        && !isBulkUpdate) {
       this.renderCursor(cursor.x, cursor.y);
     }
 
