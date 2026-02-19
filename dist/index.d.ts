@@ -82,7 +82,7 @@ export declare class CanvasRenderer {
     /**
      * Update cursor style
      */
-    setCursorStyle(style: 'block' | 'underline' | 'bar'): void;
+    setCursorStyle(style: 'block' | 'underline' | 'bar' | 'none'): void;
     /**
      * Enable/disable cursor blinking
      */
@@ -993,7 +993,7 @@ export declare interface ITerminalOptions {
     cols?: number;
     rows?: number;
     cursorBlink?: boolean;
-    cursorStyle?: 'block' | 'underline' | 'bar';
+    cursorStyle?: 'block' | 'underline' | 'bar' | 'none';
     theme?: ITheme;
     scrollback?: number;
     fontSize?: number;
@@ -1393,7 +1393,7 @@ export declare class OSC8LinkProvider implements ILinkProvider {
 export declare interface RendererOptions {
     fontSize?: number;
     fontFamily?: string;
-    cursorStyle?: 'block' | 'underline' | 'bar';
+    cursorStyle?: 'block' | 'underline' | 'bar' | 'none';
     cursorBlink?: boolean;
     theme?: ITheme;
     devicePixelRatio?: number;

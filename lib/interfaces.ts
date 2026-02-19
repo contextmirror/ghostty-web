@@ -8,7 +8,7 @@ export interface ITerminalOptions {
   cols?: number; // Default: 80
   rows?: number; // Default: 24
   cursorBlink?: boolean; // Default: false
-  cursorStyle?: 'block' | 'underline' | 'bar';
+  cursorStyle?: 'block' | 'underline' | 'bar' | 'none';
   theme?: ITheme;
   scrollback?: number; // Default: 1000
   fontSize?: number; // Default: 15

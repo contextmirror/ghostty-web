@@ -44,7 +44,7 @@ export interface IScrollbackProvider {
 export interface RendererOptions {
   fontSize?: number; // Default: 15
   fontFamily?: string; // Default: 'monospace'
-  cursorStyle?: 'block' | 'underline' | 'bar'; // Default: 'block'
+  cursorStyle?: 'block' | 'underline' | 'bar' | 'none'; // Default: 'block'
   cursorBlink?: boolean; // Default: false
   theme?: ITheme;
   devicePixelRatio?: number; // Default: window.devicePixelRatio
@@ -96,7 +96,7 @@ export class CanvasRenderer {
   private ctx: CanvasRenderingContext2D;
   private fontSize: number;
   private fontFamily: string;
-  private cursorStyle: 'block' | 'underline' | 'bar';
+  private cursorStyle: 'block' | 'underline' | 'bar' | 'none';
   private cursorBlink: boolean;
   private theme: Required<ITheme>;
   private devicePixelRatio: number;
@@ -776,6 +776,8 @@ export class CanvasRenderer {
    * Render cursor
    */
   private renderCursor(x: number, y: number): void {
+    if (this.cursorStyle === 'none') return;
+
     const cursorX = x * this.metrics.width;
     const cursorY = y * this.metrics.height;
 
@@ -876,7 +878,7 @@ export class CanvasRenderer {
   /**
    * Update cursor style
    */
-  public setCursorStyle(style: 'block' | 'underline' | 'bar'): void {
+  public setCursorStyle(style: 'block' | 'underline' | 'bar' | 'none'): void {
     this.cursorStyle = style;
   }
 

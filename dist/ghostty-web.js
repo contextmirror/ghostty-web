@@ -1820,6 +1820,8 @@ const z = {
    * Render cursor
    */
   renderCursor(A, B) {
+    if (this.cursorStyle === "none")
+      return;
     const g = A * this.metrics.width, E = B * this.metrics.height;
     switch (this.ctx.fillStyle = this.theme.cursor, this.cursorStyle) {
       case "block":
