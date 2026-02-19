@@ -1521,22 +1521,31 @@ export class Terminal implements ITerminalCore {
    * Handle wheel events for scrolling (Phase 2)
    */
   private handleWheel = (e: WheelEvent): void => {
-    // Always prevent default browser scrolling
-    e.preventDefault();
-    e.stopPropagation();
-
-    // Allow custom handler to override
+    // Allow custom handler to override first
     if (this.customWheelEventHandler && this.customWheelEventHandler(e)) {
+      e.preventDefault();
       return;
     }
 
-    // Check if in alternate screen mode (vim, less, htop, etc.)
+    // Check if in alternate screen mode (vim, less, htop, TUI apps)
     const isAltScreen = this.wasmTerm?.isAlternateScreen() ?? false;
+    const hasMouseTracking = this.wasmTerm?.hasMouseTracking() ?? false;
+
+    if (isAltScreen && hasMouseTracking) {
+      // Mouse tracking is active (TUI apps like Claude Code enable this).
+      // Let the event propagate to the InputHandler which will send proper
+      // SGR mouse wheel events (button 64/65) to the application.
+      // The InputHandler calls preventDefault() itself.
+      return;
+    }
+
+    // Prevent default browser scrolling for cases we handle ourselves
+    e.preventDefault();
+    e.stopPropagation();
 
     if (isAltScreen) {
-      // Alternate screen: send arrow keys to the application
-      // Applications like vim handle scrolling internally
-      // Standard: ~3 arrow presses per wheel "click"
+      // Alternate screen WITHOUT mouse tracking: send arrow keys as fallback
+      // (e.g. less/more without mouse support)
       const direction = e.deltaY > 0 ? 'down' : 'up';
       const count = Math.min(Math.abs(Math.round(e.deltaY / 33)), 5); // Cap at 5
 
