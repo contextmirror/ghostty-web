@@ -114,6 +114,7 @@ export class Terminal implements ITerminalCore {
   // Phase 2: Viewport and scrolling state
   public viewportY: number = 0; // Top line of viewport in scrollback buffer (0 = at bottom, can be fractional during smooth scroll)
   private targetViewportY: number = 0; // Target viewport position for smooth scrolling
+  private userScrolledUp: boolean = false; // User has intentionally scrolled up — suppress auto-scroll
   private scrollAnimationStartTime?: number;
   private scrollAnimationStartY?: number;
   private scrollAnimationFrame?: number;
@@ -571,8 +572,11 @@ export class Terminal implements ITerminalCore {
     // Invalidate link cache (content changed)
     this.linkDetector?.invalidateCache();
 
-    // Phase 2: Auto-scroll to bottom on new output (xterm.js behavior)
-    if (this.viewportY !== 0) {
+    // Phase 2: Auto-scroll to bottom on new output — but only if the user
+    // hasn't intentionally scrolled up.  This prevents TUI apps (Claude Code,
+    // etc.) that continuously write data from snapping the viewport back to
+    // the bottom while the user is reading scrollback.
+    if (this.viewportY !== 0 && !this.userScrolledUp) {
       this.scrollToBottom();
     }
 
@@ -814,6 +818,15 @@ export class Terminal implements ITerminalCore {
     return this.viewportY;
   }
 
+  /**
+   * Whether the user has intentionally scrolled up into history.
+   * When true, auto-scroll on new output is suppressed.
+   * Resets when the user scrolls back to the bottom.
+   */
+  public isUserScrolled(): boolean {
+    return this.userScrolledUp;
+  }
+
   public getSelectionPosition(): IBufferRange | undefined {
     return this.selectionManager?.getSelectionPosition();
   }
@@ -899,6 +912,13 @@ export class Terminal implements ITerminalCore {
       this.viewportY = newViewportY;
       this.scrollEmitter.fire(this.viewportY);
 
+      // Track user scroll intent
+      if (newViewportY > 0) {
+        this.userScrolledUp = true;
+      } else {
+        this.userScrolledUp = false;
+      }
+
       // Show scrollbar when scrolling (with auto-hide)
       if (scrollbackLength > 0) {
         this.showScrollbar();
@@ -920,6 +940,7 @@ export class Terminal implements ITerminalCore {
   public scrollToTop(): void {
     const scrollbackLength = this.getScrollbackLength();
     if (scrollbackLength > 0 && this.viewportY !== scrollbackLength) {
+      this.userScrolledUp = true;
       this.viewportY = scrollbackLength;
       this.scrollEmitter.fire(this.viewportY);
       this.showScrollbar();
@@ -930,6 +951,7 @@ export class Terminal implements ITerminalCore {
    * Scroll viewport to the bottom (current output)
    */
   public scrollToBottom(): void {
+    this.userScrolledUp = false;
     if (this.viewportY !== 0) {
       this.viewportY = 0;
       this.scrollEmitter.fire(this.viewportY);
@@ -1553,6 +1575,15 @@ export class Terminal implements ITerminalCore {
         // deltaY < 0 = scroll up (increase viewportY)
         const targetY = this.viewportY - deltaLines;
         this.smoothScrollTo(targetY);
+
+        // Track user scroll intent:
+        // - Scrolling up (deltaY < 0, targetY > 0) → user wants to read history
+        // - Scrolling to bottom (target ≤ 0) → user wants live output again
+        if (targetY > 0.5) {
+          this.userScrolledUp = true;
+        } else if (targetY <= 0) {
+          this.userScrolledUp = false;
+        }
       }
     }
   };

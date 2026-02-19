@@ -1653,6 +1653,7 @@ export declare class Terminal implements ITerminalCore {
     private currentTitle;
     viewportY: number;
     private targetViewportY;
+    private userScrolledUp;
     private scrollAnimationStartTime?;
     private scrollAnimationStartY?;
     private scrollAnimationFrame?;
@@ -1779,6 +1780,12 @@ export declare class Terminal implements ITerminalCore {
      * scrollback buffer. It may be fractional during smooth scrolling.
      */
     getViewportY(): number;
+    /**
+     * Whether the user has intentionally scrolled up into history.
+     * When true, auto-scroll on new output is suppressed.
+     * Resets when the user scrolls back to the bottom.
+     */
+    isUserScrolled(): boolean;
     getSelectionPosition(): IBufferRange | undefined;
     /**
      * Attach a custom keyboard event handler
