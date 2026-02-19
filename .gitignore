@@ -1,8 +1,7 @@
 node_modules/
-dist/
 .DS_Store
 *.log
 .vite/
 
-# WASM build output (built locally and in CI)
-ghostty-vt.wasm
+# WASM build output (built locally and in CI — but kept in repo for GitHub installs)
+# ghostty-vt.wasm
