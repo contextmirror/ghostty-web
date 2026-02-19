@@ -108,6 +108,13 @@ export class CanvasRenderer {
   private cursorBlinkInterval?: number;
   private lastCursorPosition: { x: number; y: number } = { x: 0, y: 0 };
 
+  // Cursor stability tracking — prevents ghost cursors during rapid TUI updates.
+  // TUI apps (like Claude Code) reposition the cursor many times per frame to
+  // update status bars, input fields, and content. Without debouncing, the cursor
+  // briefly renders at intermediate positions, creating phantom "ghost" cursors.
+  // We only render the cursor after it's been at the same position for 1+ frames.
+  private cursorStableFrames: number = 2; // Start stable so cursor shows on first render
+
   // Viewport tracking (for scrolling)
   private lastViewportY: number = 0;
 
@@ -295,31 +302,67 @@ export class CanvasRenderer {
       forceAll = true; // Force full render after resize
     }
 
+    // Clip all rendering to the viewport bounds.
+    // Prevents content from bleeding outside the terminal canvas when the
+    // container is smaller than the computed cell grid (due to padding,
+    // flex layout, or DPI rounding).
+    const cssWidth = dims.cols * this.metrics.width;
+    const cssHeight = dims.rows * this.metrics.height;
+    this.ctx.save();
+    this.ctx.beginPath();
+    this.ctx.rect(0, 0, cssWidth, cssHeight);
+    this.ctx.clip();
+
     // Force re-render when viewport changes (scrolling)
     if (viewportY !== this.lastViewportY) {
       forceAll = true;
       this.lastViewportY = viewportY;
     }
 
-    // Check if cursor position changed or if blinking (need to redraw cursor line)
+    // Cursor stability tracking — debounce cursor rendering to prevent
+    // ghost artifacts during rapid TUI updates (e.g. Claude Code updating
+    // status bar, input field, and content area in a single frame).
     const cursorMoved =
       cursor.x !== this.lastCursorPosition.x || cursor.y !== this.lastCursorPosition.y;
-    if (cursorMoved || this.cursorBlink) {
-      // Mark cursor lines as needing redraw
+
+    if (cursorMoved) {
+      this.cursorStableFrames = 0;
+
+      // Redraw cursor lines to clear old cursor
       if (!forceAll && !buffer.isRowDirty(cursor.y)) {
-        // Need to redraw cursor line
         const line = buffer.getLine(cursor.y);
         if (line) {
           this.renderLine(line, cursor.y, dims.cols);
         }
       }
-      if (cursorMoved && this.lastCursorPosition.y !== cursor.y) {
-        // Also redraw old cursor line if cursor moved to different line
+      if (this.lastCursorPosition.y !== cursor.y) {
         if (!forceAll && !buffer.isRowDirty(this.lastCursorPosition.y)) {
           const line = buffer.getLine(this.lastCursorPosition.y);
           if (line) {
             this.renderLine(line, this.lastCursorPosition.y, dims.cols);
           }
+        }
+      }
+    } else {
+      this.cursorStableFrames++;
+
+      // Cursor just became stable — redraw its line so we can paint the cursor on it
+      if (this.cursorStableFrames === 1) {
+        if (!forceAll && !buffer.isRowDirty(cursor.y)) {
+          const line = buffer.getLine(cursor.y);
+          if (line) {
+            this.renderLine(line, cursor.y, dims.cols);
+          }
+        }
+      }
+    }
+
+    // Handle cursor blink redraws (independent of stability)
+    if (this.cursorBlink && !cursorMoved) {
+      if (!forceAll && !buffer.isRowDirty(cursor.y)) {
+        const line = buffer.getLine(cursor.y);
+        if (line) {
+          this.renderLine(line, cursor.y, dims.cols);
         }
       }
     }
@@ -483,8 +526,10 @@ export class CanvasRenderer {
 
     // Link underlines are drawn during cell rendering (see renderCell)
 
-    // Render cursor (only if we're at the bottom, not scrolled)
-    if (viewportY === 0 && cursor.visible && this.cursorVisible) {
+    // Render cursor — only when stable (debounced) to prevent ghost artifacts.
+    // During rapid TUI updates the cursor passes through intermediate positions;
+    // we skip rendering until it's been at the same position for 1+ frames.
+    if (viewportY === 0 && cursor.visible && this.cursorVisible && this.cursorStableFrames >= 1) {
       this.renderCursor(cursor.x, cursor.y);
     }
 
@@ -492,6 +537,9 @@ export class CanvasRenderer {
     if (scrollbackProvider && scrollbarOpacity > 0) {
       this.renderScrollbar(viewportY, scrollbackLength, dims.rows, scrollbarOpacity);
     }
+
+    // Restore canvas state (removes clip rect)
+    this.ctx.restore();
 
     // Update last cursor position
     this.lastCursorPosition = { x: cursor.x, y: cursor.y };
