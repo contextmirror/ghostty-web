@@ -408,19 +408,26 @@ export class CanvasRenderer {
     if (hyperlinkChanged) {
       // Find rows containing the old or new hovered hyperlink
       // Must check the correct buffer based on viewportY (scrollback vs screen)
+      const flooredViewportY = Math.floor(viewportY);
       for (let y = 0; y < dims.rows; y++) {
         let line: GhosttyCell[] | null = null;
 
         // Same logic as rendering: fetch from scrollback or screen
         if (viewportY > 0) {
-          if (y < viewportY && scrollbackProvider) {
+          if (y < flooredViewportY && scrollbackProvider) {
             // This row is from scrollback
             // Floor viewportY for array access (handles fractional values during smooth scroll)
-            const scrollbackOffset = scrollbackLength - Math.floor(viewportY) + y;
-            line = scrollbackProvider.getScrollbackLine(scrollbackOffset);
+            const scrollbackOffset = scrollbackLength - flooredViewportY + y;
+            if (scrollbackOffset < 0 || scrollbackOffset >= scrollbackLength) {
+              // Fall back to visible screen row
+              const screenRow = y - flooredViewportY;
+              line = buffer.getLine(Math.max(0, Math.min(screenRow, dims.rows - 1)));
+            } else {
+              line = scrollbackProvider.getScrollbackLine(scrollbackOffset);
+            }
           } else {
             // This row is from visible screen
-            const screenRow = y - Math.floor(viewportY);
+            const screenRow = y - flooredViewportY;
             line = buffer.getLine(screenRow);
           }
         } else {
@@ -498,21 +505,28 @@ export class CanvasRenderer {
 
       // Fetch line from scrollback or visible screen
       let line: GhosttyCell[] | null = null;
+      const flooredVY = Math.floor(viewportY);
       if (viewportY > 0) {
         // Scrolled up - need to fetch from scrollback + visible screen
         // When scrolled up N lines, we want to show:
         // - Scrollback lines (from the end) + visible screen lines
 
         // Check if this row should come from scrollback or visible screen
-        if (y < viewportY && scrollbackProvider) {
+        if (y < flooredVY && scrollbackProvider) {
           // This row is from scrollback (upper part of viewport)
           // Get from end of scrollback buffer
           // Floor viewportY for array access (handles fractional values during smooth scroll)
-          const scrollbackOffset = scrollbackLength - Math.floor(viewportY) + y;
-          line = scrollbackProvider.getScrollbackLine(scrollbackOffset);
+          const scrollbackOffset = scrollbackLength - flooredVY + y;
+          if (scrollbackOffset < 0 || scrollbackOffset >= scrollbackLength) {
+            // Fall back to visible screen row
+            const screenRow = y - flooredVY;
+            line = buffer.getLine(Math.max(0, Math.min(screenRow, dims.rows - 1)));
+          } else {
+            line = scrollbackProvider.getScrollbackLine(scrollbackOffset);
+          }
         } else {
           // This row is from visible screen (lower part of viewport)
-          const screenRow = viewportY > 0 ? y - Math.floor(viewportY) : y;
+          const screenRow = viewportY > 0 ? y - flooredVY : y;
           line = buffer.getLine(screenRow);
         }
       } else {
@@ -1028,6 +1042,33 @@ export class CanvasRenderer {
    */
   public get charHeight(): number {
     return this.metrics.height;
+  }
+
+  /**
+   * Reset internal renderer tracking state.
+   * Call this when switching providers or terminal contexts to prevent
+   * stale cursor/viewport state from causing rendering artifacts.
+   */
+  public resetRendererState(): void {
+    this.cursorStableFrames = 3; // Start stable so cursor shows immediately
+    this.lastViewportY = 0;
+    if (this.lastCursorPosition) {
+      this.lastCursorPosition = { x: 0, y: 0 };
+    }
+  }
+
+  /**
+   * Force a full canvas clear and redraw on the next render frame.
+   * Clears the entire canvas and resets internal state so the next
+   * render() call performs a complete redraw of all rows.
+   */
+  public forceFullRedraw(): void {
+    if (this.ctx && this.canvas) {
+      this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    }
+    // Reset internal state so next render is a full redraw
+    this.cursorStableFrames = 0;
+    this.lastViewportY = -1; // Force viewport change detection
   }
 
   /**

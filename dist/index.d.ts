@@ -133,6 +133,18 @@ export declare class CanvasRenderer {
      */
     get charHeight(): number;
     /**
+     * Reset internal renderer tracking state.
+     * Call this when switching providers or terminal contexts to prevent
+     * stale cursor/viewport state from causing rendering artifacts.
+     */
+    resetRendererState(): void;
+    /**
+     * Force a full canvas clear and redraw on the next render frame.
+     * Clears the entire canvas and resets internal state so the next
+     * render() call performs a complete redraw of all rows.
+     */
+    forceFullRedraw(): void;
+    /**
      * Clear entire canvas
      */
     clear(): void;
@@ -1729,6 +1741,18 @@ export declare class Terminal implements ITerminalCore {
      * Reset terminal state
      */
     reset(): void;
+    /**
+     * Reset renderer tracking state (cursor stability, viewport position).
+     * Call this when switching providers or terminal contexts to prevent
+     * stale state from causing rendering artifacts.
+     */
+    resetRendererState(): void;
+    /**
+     * Force a full canvas clear and redraw.
+     * Useful after provider switches or when the terminal content needs
+     * to be completely refreshed.
+     */
+    forceFullRedraw(): void;
     /**
      * Focus terminal input
      */

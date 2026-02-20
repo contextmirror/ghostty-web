@@ -719,6 +719,32 @@ export class Terminal implements ITerminalCore {
   }
 
   /**
+   * Reset renderer tracking state (cursor stability, viewport position).
+   * Call this when switching providers or terminal contexts to prevent
+   * stale state from causing rendering artifacts.
+   */
+  resetRendererState(): void {
+    if (this.renderer) {
+      this.renderer.resetRendererState();
+    }
+  }
+
+  /**
+   * Force a full canvas clear and redraw.
+   * Useful after provider switches or when the terminal content needs
+   * to be completely refreshed.
+   */
+  forceFullRedraw(): void {
+    if (this.renderer) {
+      this.renderer.forceFullRedraw();
+      // Trigger an immediate full render if the terminal is open
+      if (this.wasmTerm) {
+        this.renderer.render(this.wasmTerm, true, this.viewportY, this, this.scrollbarOpacity);
+      }
+    }
+  }
+
+  /**
    * Focus terminal input
    */
   focus(): void {
