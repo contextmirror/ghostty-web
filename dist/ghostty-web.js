@@ -1646,10 +1646,10 @@ const V = {
    * Render the terminal buffer to canvas
    */
   render(A, B = !1, g = 0, E, C = 1) {
-    var Y;
+    var q;
     this.currentBuffer = A;
     const I = A.getCursor(), D = A.getDimensions(), o = E ? E.getScrollbackLength() : 0;
-    (Y = A.needsFullRedraw) != null && Y.call(A) && (B = !0), (this.canvas.width !== D.cols * this.metrics.width * this.devicePixelRatio || this.canvas.height !== D.rows * this.metrics.height * this.devicePixelRatio) && (this.resize(D.cols, D.rows), B = !0);
+    (q = A.needsFullRedraw) != null && q.call(A) && (B = !0), (this.canvas.width !== D.cols * this.metrics.width * this.devicePixelRatio || this.canvas.height !== D.rows * this.metrics.height * this.devicePixelRatio) && (this.resize(D.cols, D.rows), B = !0);
     const s = D.cols * this.metrics.width, t = D.rows * this.metrics.height;
     this.ctx.save(), this.ctx.beginPath(), this.ctx.rect(0, 0, s, t), this.ctx.clip(), g !== this.lastViewportY && (B = !0, this.lastViewportY = g);
     const a = I.x !== this.lastCursorPosition.x || I.y !== this.lastCursorPosition.y;
@@ -1684,7 +1684,7 @@ const V = {
         this.selectionManager.clearDirtySelectionRows();
       }
     }
-    const N = /* @__PURE__ */ new Set(), c = this.hoveredHyperlinkId !== this.previousHoveredHyperlinkId, q = JSON.stringify(this.hoveredLinkRange) !== JSON.stringify(this.previousHoveredLinkRange);
+    const N = /* @__PURE__ */ new Set(), c = this.hoveredHyperlinkId !== this.previousHoveredHyperlinkId, Y = JSON.stringify(this.hoveredLinkRange) !== JSON.stringify(this.previousHoveredLinkRange);
     if (c) {
       const h = Math.floor(g);
       for (let e = 0; e < D.rows; e++) {
@@ -1713,7 +1713,7 @@ const V = {
       }
       this.previousHoveredHyperlinkId = this.hoveredHyperlinkId;
     }
-    if (q) {
+    if (Y) {
       if (this.previousHoveredLinkRange)
         for (let h = this.previousHoveredLinkRange.startY; h <= this.previousHoveredLinkRange.endY; h++)
           N.add(h);
@@ -1927,8 +1927,8 @@ const V = {
       return;
     const a = B + g, M = Math.max(20, g / a * t), k = A / B, N = s + (t - M) * (1 - k);
     C.fillStyle = `rgba(128, 128, 128, ${0.1 * E})`, C.fillRect(w, s, o, t);
-    const q = A > 0 ? 0.5 : 0.3;
-    C.fillStyle = `rgba(128, 128, 128, ${q * E})`, C.fillRect(w, N, o, M);
+    const Y = A > 0 ? 0.5 : 0.3;
+    C.fillStyle = `rgba(128, 128, 128, ${Y * E})`, C.fillRect(w, N, o, M);
   }
   getMetrics() {
     return { ...this.metrics };
@@ -2440,7 +2440,7 @@ class sA {
         return;
       const g = this.options.smoothScrollDuration ?? 100, E = this.targetViewportY - this.viewportY;
       if (Math.abs(E) < 0.01) {
-        this.viewportY = this.targetViewportY, this.scrollEmitter.fire(Math.floor(this.viewportY)), this.getScrollbackLength() > 0 && this.showScrollbar(), this.scrollAnimationFrame = void 0, this.scrollAnimationStartTime = void 0, this.scrollAnimationStartY = void 0;
+        this.viewportY = this.targetViewportY, this.scrollEmitter.fire(Math.floor(this.viewportY)), this.getScrollbackLength() > 0 && this.showScrollbar(), this.scrollAnimationFrame = void 0, this.scrollAnimationStartTime = void 0, this.scrollAnimationStartY = void 0, this.viewportY === 0 && (this.userScrolledUp = !1);
         return;
       }
       const D = 1 - (1 / (g / 1e3 * 60)) ** 2;
@@ -2519,11 +2519,11 @@ class sA {
       const C = this.canvas.getBoundingClientRect(), I = g.clientX - C.left, D = g.clientY - C.top, o = C.width, w = C.height, s = 8, t = o - s - 4, a = 4;
       if (I >= t && I <= t + s) {
         g.preventDefault(), g.stopPropagation(), g.stopImmediatePropagation();
-        const M = w - a * 2, k = this.rows, N = E + k, c = Math.max(20, k / N * M), q = this.viewportY / E, U = a + (M - c) * (1 - q);
+        const M = w - a * 2, k = this.rows, N = E + k, c = Math.max(20, k / N * M), Y = this.viewportY / E, U = a + (M - c) * (1 - Y);
         if (D >= U && D <= U + c)
           this.isDraggingScrollbar = !0, this.scrollbarDragStart = D, this.scrollbarDragStartViewportY = this.viewportY, this.canvas && (this.canvas.style.userSelect = "none", this.canvas.style.webkitUserSelect = "none");
         else {
-          const Y = 1 - (D - a) / M, h = Math.round(Y * E);
+          const q = 1 - (D - a) / M, h = Math.round(q * E);
           this.scrollToLine(Math.max(0, Math.min(E, h)));
         }
       }
@@ -2772,9 +2772,11 @@ class sA {
   resize(A, B) {
     if (this.assertOpen(), A === this.cols && B === this.rows)
       return;
-    this.cols = A, this.rows = B, this.wasmTerm.resize(A, B), this.renderer.resize(A, B);
+    this.scrollAnimationFrame && (cancelAnimationFrame(this.scrollAnimationFrame), this.scrollAnimationFrame = void 0, this.scrollAnimationStartTime = void 0, this.scrollAnimationStartY = void 0), this.cols = A, this.rows = B, this.wasmTerm.resize(A, B), this.renderer.resize(A, B);
     const g = this.renderer.getMetrics();
-    this.canvas.width = g.width * A, this.canvas.height = g.height * B, this.canvas.style.width = `${g.width * A}px`, this.canvas.style.height = `${g.height * B}px`, this.resizeEmitter.fire({ cols: A, rows: B }), this.renderer.render(this.wasmTerm, !0, this.viewportY, this);
+    this.canvas.width = g.width * A, this.canvas.height = g.height * B, this.canvas.style.width = `${g.width * A}px`, this.canvas.style.height = `${g.height * B}px`;
+    const E = this.getScrollbackLength();
+    this.viewportY > E && (this.viewportY = E), this.resizeEmitter.fire({ cols: A, rows: B }), this.renderer.render(this.wasmTerm, !0, this.viewportY, this);
   }
   /**
    * Clear terminal screen
@@ -3093,10 +3095,10 @@ class sA {
     else
       a = t + C;
     this.linkDetector.getLinkAt(g, a).then((N) => {
-      var c, q, U, L;
-      if (N !== this.currentHoveredLink && ((q = (c = this.currentHoveredLink) == null ? void 0 : c.hover) == null || q.call(c, !1), this.currentHoveredLink = N, (U = N == null ? void 0 : N.hover) == null || U.call(N, !0), this.element && (this.element.style.cursor = N ? "pointer" : "text"), this.renderer))
+      var c, Y, U, L;
+      if (!this.isDisposed && N !== this.currentHoveredLink && ((Y = (c = this.currentHoveredLink) == null ? void 0 : c.hover) == null || Y.call(c, !1), this.currentHoveredLink = N, (U = N == null ? void 0 : N.hover) == null || U.call(N, !0), this.element && (this.element.style.cursor = N ? "pointer" : "text"), this.renderer))
         if (N) {
-          const Y = ((L = this.wasmTerm) == null ? void 0 : L.getScrollbackLength()) || 0, h = this.getViewportY(), e = Math.max(0, Math.floor(h)), J = N.range.start.y - Y + e, F = N.range.end.y - Y + e;
+          const q = ((L = this.wasmTerm) == null ? void 0 : L.getScrollbackLength()) || 0, h = this.getViewportY(), e = Math.max(0, Math.floor(h)), J = N.range.start.y - q + e, F = N.range.end.y - q + e;
           J < this.rows && F >= 0 ? this.renderer.setHoveredLinkRange({
             startX: N.range.start.x,
             startY: Math.max(0, J),

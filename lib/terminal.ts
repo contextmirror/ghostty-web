@@ -665,6 +665,14 @@ export class Terminal implements ITerminalCore {
       return; // No change
     }
 
+    // Cancel smooth scroll to prevent jitter during resize
+    if (this.scrollAnimationFrame) {
+      cancelAnimationFrame(this.scrollAnimationFrame);
+      this.scrollAnimationFrame = undefined;
+      this.scrollAnimationStartTime = undefined;
+      this.scrollAnimationStartY = undefined;
+    }
+
     // Update dimensions
     this.cols = cols;
     this.rows = rows;
@@ -681,6 +689,12 @@ export class Terminal implements ITerminalCore {
     this.canvas!.height = metrics.height * rows;
     this.canvas!.style.width = `${metrics.width * cols}px`;
     this.canvas!.style.height = `${metrics.height * rows}px`;
+
+    // Clamp viewportY if it exceeds new scrollback bounds after resize
+    const scrollbackLength = this.getScrollbackLength();
+    if (this.viewportY > scrollbackLength) {
+      this.viewportY = scrollbackLength;
+    }
 
     // Fire resize event
     this.resizeEmitter.fire({ cols, rows });
@@ -1078,6 +1092,11 @@ export class Terminal implements ITerminalCore {
       this.scrollAnimationFrame = undefined;
       this.scrollAnimationStartTime = undefined;
       this.scrollAnimationStartY = undefined;
+
+      // If we've landed at the bottom, re-enable auto-scroll
+      if (this.viewportY === 0) {
+        this.userScrolledUp = false;
+      }
       return;
     }
 
@@ -1415,6 +1434,9 @@ export class Terminal implements ITerminalCore {
     this.linkDetector
       .getLinkAt(x, bufferRow)
       .then((link) => {
+        // Guard against stale callbacks after disposal
+        if (this.isDisposed) return;
+
         // Update hover state for cursor changes and click handling
         if (link !== this.currentHoveredLink) {
           // Notify old link we're leaving
