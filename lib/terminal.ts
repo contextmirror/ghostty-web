@@ -101,6 +101,7 @@ export class Terminal implements ITerminalCore {
   private isOpen = false;
   private isDisposed = false;
   private animationFrameId?: number;
+  private _renderingFrozen: boolean = false;
 
   // Addons
   private addons: ITerminalAddon[] = [];
@@ -756,9 +757,38 @@ export class Terminal implements ITerminalCore {
     this.userScrolledUp = false;
     this.lastCursorY = 0;
     this.scrollbarOpacity = 0;
+    this._renderingFrozen = false;
 
     // 7. Restart the render loop with fresh closure over new wasmTerm
     this.startRenderLoop();
+  }
+
+  /**
+   * Pause rendering. The render loop keeps running but skips all drawing.
+   * Writes via write() are still processed by the WASM parser (maintaining
+   * terminal state like alt-screen, cursor position, colors), but the canvas
+   * is not updated. Call unfreeze() to resume rendering with a full redraw.
+   *
+   * Use case: during TUI app startup, many escape sequences arrive across
+   * multiple event loop ticks. Without freezing, each tick triggers a
+   * partial render — garbled status bars, scattered text. Freezing ensures
+   * the first visible frame shows the complete TUI.
+   */
+  freeze(): void {
+    this._renderingFrozen = true;
+  }
+
+  /**
+   * Resume rendering after freeze(). Immediately performs a full redraw
+   * (forceAll=true) to paint the current WASM buffer state, then the
+   * render loop continues with normal dirty-row tracking.
+   */
+  unfreeze(): void {
+    this._renderingFrozen = false;
+    // Catch up: full render of whatever accumulated in the WASM buffer
+    if (this.renderer && this.wasmTerm && this.isOpen && !this.isDisposed) {
+      this.renderer.render(this.wasmTerm, true, this.viewportY, this, this.scrollbarOpacity);
+    }
   }
 
   /**
@@ -1215,19 +1245,21 @@ export class Terminal implements ITerminalCore {
   private startRenderLoop(): void {
     const loop = () => {
       if (!this.isDisposed && this.isOpen) {
-        // Render using WASM's native dirty tracking
-        // The render() method:
-        // 1. Calls update() once to sync state and check dirty flags
-        // 2. Only redraws dirty rows when forceAll=false
-        // 3. Always calls clearDirty() at the end
-        this.renderer!.render(this.wasmTerm!, false, this.viewportY, this, this.scrollbarOpacity);
+        if (!this._renderingFrozen) {
+          // Render using WASM's native dirty tracking
+          // The render() method:
+          // 1. Calls update() once to sync state and check dirty flags
+          // 2. Only redraws dirty rows when forceAll=false
+          // 3. Always calls clearDirty() at the end
+          this.renderer!.render(this.wasmTerm!, false, this.viewportY, this, this.scrollbarOpacity);
 
-        // Check for cursor movement (Phase 2: onCursorMove event)
-        // Note: getCursor() reads from already-updated render state (from render() above)
-        const cursor = this.wasmTerm!.getCursor();
-        if (cursor.y !== this.lastCursorY) {
-          this.lastCursorY = cursor.y;
-          this.cursorMoveEmitter.fire();
+          // Check for cursor movement (Phase 2: onCursorMove event)
+          // Note: getCursor() reads from already-updated render state (from render() above)
+          const cursor = this.wasmTerm!.getCursor();
+          if (cursor.y !== this.lastCursorY) {
+            this.lastCursorY = cursor.y;
+            this.cursorMoveEmitter.fire();
+          }
         }
 
         // Note: onRender event is intentionally not fired in the render loop

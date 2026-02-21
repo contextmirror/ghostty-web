@@ -791,7 +791,7 @@ const $ = {
   F22: i.F22,
   F23: i.F23,
   F24: i.F24
-}, j = class R {
+}, j = class L {
   /**
    * Create a new InputHandler
    * @param ghostty - Ghostty instance (for creating KeyEncoder)
@@ -1204,7 +1204,7 @@ const $ = {
   shouldIgnoreBeforeInput(A) {
     if (!this.lastKeyDownData)
       return !1;
-    const g = this.getNow() - this.lastKeyDownTime < R.BEFORE_INPUT_IGNORE_MS && this.lastKeyDownData === A;
+    const g = this.getNow() - this.lastKeyDownTime < L.BEFORE_INPUT_IGNORE_MS && this.lastKeyDownData === A;
     return this.lastKeyDownData = null, g;
   }
   /**
@@ -1213,7 +1213,7 @@ const $ = {
   shouldIgnoreBeforeInputFromComposition(A) {
     if (!this.lastCompositionData)
       return !1;
-    const g = this.getNow() - this.lastCompositionTime < R.BEFORE_INPUT_IGNORE_MS && this.lastCompositionData === A;
+    const g = this.getNow() - this.lastCompositionTime < L.BEFORE_INPUT_IGNORE_MS && this.lastCompositionData === A;
     return g && (this.lastCompositionData = null), g;
   }
   /**
@@ -1222,7 +1222,7 @@ const $ = {
   shouldIgnoreCompositionEnd(A) {
     if (!this.lastBeforeInputData)
       return !1;
-    const g = this.getNow() - this.lastBeforeInputTime < R.BEFORE_INPUT_IGNORE_MS && this.lastBeforeInputData === A;
+    const g = this.getNow() - this.lastBeforeInputTime < L.BEFORE_INPUT_IGNORE_MS && this.lastBeforeInputData === A;
     return g && (this.lastBeforeInputData = null), g;
   }
   /**
@@ -1243,7 +1243,7 @@ const $ = {
   shouldIgnorePasteEvent(A, B) {
     if (!this.lastPasteData || this.lastPasteSource === B)
       return !1;
-    const E = this.getNow() - this.lastPasteTime < R.BEFORE_INPUT_IGNORE_MS && this.lastPasteData === A;
+    const E = this.getNow() - this.lastPasteTime < L.BEFORE_INPUT_IGNORE_MS && this.lastPasteData === A;
     return E && (this.lastPasteData = null, this.lastPasteSource = null), E;
   }
   /**
@@ -1502,7 +1502,7 @@ class BA {
   dispose() {
   }
 }
-const f = class n {
+const f = class R {
   constructor(A) {
     this.terminal = A;
   }
@@ -1516,13 +1516,13 @@ const f = class n {
       return;
     }
     const C = this.lineToText(E);
-    n.URL_REGEX.lastIndex = 0;
-    let I = n.URL_REGEX.exec(C);
+    R.URL_REGEX.lastIndex = 0;
+    let I = R.URL_REGEX.exec(C);
     for (; I !== null; ) {
       let D = I[0];
       const o = I.index;
       let w = I.index + D.length - 1;
-      const s = D.replace(n.TRAILING_PUNCTUATION, "");
+      const s = D.replace(R.TRAILING_PUNCTUATION, "");
       s.length < D.length && (D = s, w = o + D.length - 1), D.length > 8 && g.push({
         text: D,
         range: {
@@ -1532,7 +1532,7 @@ const f = class n {
         activate: (t) => {
           (t.ctrlKey || t.metaKey) && window.open(D, "_blank", "noopener,noreferrer");
         }
-      }), I = n.URL_REGEX.exec(C);
+      }), I = R.URL_REGEX.exec(C);
     }
     B(g.length > 0 ? g : void 0);
   }
@@ -1746,8 +1746,8 @@ const V = {
         e = A.getLine(h);
       e && this.renderLine(e, h, D.cols);
     }
-    const L = U.size >= S.BULK_DIRTY_THRESHOLD;
-    L && (this.cursorStableFrames = 0), g === 0 && I.visible && this.cursorVisible && this.cursorStableFrames >= S.CURSOR_STABLE_THRESHOLD && !L && this.renderCursor(I.x, I.y), E && C > 0 && this.renderScrollbar(g, o, D.rows, C), this.ctx.restore(), this.lastCursorPosition = { x: I.x, y: I.y }, A.clearDirty();
+    const n = U.size >= S.BULK_DIRTY_THRESHOLD;
+    n && (this.cursorStableFrames = 0), g === 0 && I.visible && this.cursorVisible && this.cursorStableFrames >= S.CURSOR_STABLE_THRESHOLD && !n && this.renderCursor(I.x, I.y), E && C > 0 && this.renderScrollbar(g, o, D.rows, C), this.ctx.restore(), this.lastCursorPosition = { x: I.x, y: I.y }, A.clearDirty();
   }
   /**
    * Render a single line using two-pass approach:
@@ -2435,7 +2435,7 @@ class sA {
       get activeVersion() {
         return "15.1";
       }
-    }, this.dataEmitter = new r(), this.resizeEmitter = new r(), this.bellEmitter = new r(), this.selectionChangeEmitter = new r(), this.keyEmitter = new r(), this.titleChangeEmitter = new r(), this.scrollEmitter = new r(), this.renderEmitter = new r(), this.cursorMoveEmitter = new r(), this.onData = this.dataEmitter.event, this.onResize = this.resizeEmitter.event, this.onBell = this.bellEmitter.event, this.onSelectionChange = this.selectionChangeEmitter.event, this.onKey = this.keyEmitter.event, this.onTitleChange = this.titleChangeEmitter.event, this.onScroll = this.scrollEmitter.event, this.onRender = this.renderEmitter.event, this.onCursorMove = this.cursorMoveEmitter.event, this.isOpen = !1, this.isDisposed = !1, this.addons = [], this.currentTitle = "", this.viewportY = 0, this.targetViewportY = 0, this.userScrolledUp = !1, this.lastCursorY = 0, this.isDraggingScrollbar = !1, this.scrollbarDragStart = null, this.scrollbarDragStartViewportY = 0, this.scrollbarVisible = !1, this.scrollbarOpacity = 0, this.SCROLLBAR_HIDE_DELAY_MS = 1500, this.SCROLLBAR_FADE_DURATION_MS = 200, this.animateScroll = () => {
+    }, this.dataEmitter = new r(), this.resizeEmitter = new r(), this.bellEmitter = new r(), this.selectionChangeEmitter = new r(), this.keyEmitter = new r(), this.titleChangeEmitter = new r(), this.scrollEmitter = new r(), this.renderEmitter = new r(), this.cursorMoveEmitter = new r(), this.onData = this.dataEmitter.event, this.onResize = this.resizeEmitter.event, this.onBell = this.bellEmitter.event, this.onSelectionChange = this.selectionChangeEmitter.event, this.onKey = this.keyEmitter.event, this.onTitleChange = this.titleChangeEmitter.event, this.onScroll = this.scrollEmitter.event, this.onRender = this.renderEmitter.event, this.onCursorMove = this.cursorMoveEmitter.event, this.isOpen = !1, this.isDisposed = !1, this._renderingFrozen = !1, this.addons = [], this.currentTitle = "", this.viewportY = 0, this.targetViewportY = 0, this.userScrolledUp = !1, this.lastCursorY = 0, this.isDraggingScrollbar = !1, this.scrollbarDragStart = null, this.scrollbarDragStartViewportY = 0, this.scrollbarVisible = !1, this.scrollbarOpacity = 0, this.SCROLLBAR_HIDE_DELAY_MS = 1500, this.SCROLLBAR_FADE_DURATION_MS = 200, this.animateScroll = () => {
       if (!this.wasmTerm || this.scrollAnimationStartTime === void 0)
         return;
       const g = this.options.smoothScrollDuration ?? 100, E = this.targetViewportY - this.viewportY;
@@ -2790,7 +2790,29 @@ class sA {
   reset() {
     this.assertOpen(), this.animationFrameId && (cancelAnimationFrame(this.animationFrameId), this.animationFrameId = void 0), this.wasmTerm && (this.wasmTerm.free(), this.wasmTerm = void 0);
     const A = this.buildWasmConfig();
-    this.wasmTerm = this.ghostty.createTerminal(this.cols, this.rows, A), this.renderer.clear(), this.renderer.resetRendererState(), this.scrollAnimationFrame && (cancelAnimationFrame(this.scrollAnimationFrame), this.scrollAnimationFrame = void 0, this.scrollAnimationStartTime = void 0), this.currentTitle = "", this.viewportY = 0, this.targetViewportY = 0, this.userScrolledUp = !1, this.lastCursorY = 0, this.scrollbarOpacity = 0, this.startRenderLoop();
+    this.wasmTerm = this.ghostty.createTerminal(this.cols, this.rows, A), this.renderer.clear(), this.renderer.resetRendererState(), this.scrollAnimationFrame && (cancelAnimationFrame(this.scrollAnimationFrame), this.scrollAnimationFrame = void 0, this.scrollAnimationStartTime = void 0), this.currentTitle = "", this.viewportY = 0, this.targetViewportY = 0, this.userScrolledUp = !1, this.lastCursorY = 0, this.scrollbarOpacity = 0, this._renderingFrozen = !1, this.startRenderLoop();
+  }
+  /**
+   * Pause rendering. The render loop keeps running but skips all drawing.
+   * Writes via write() are still processed by the WASM parser (maintaining
+   * terminal state like alt-screen, cursor position, colors), but the canvas
+   * is not updated. Call unfreeze() to resume rendering with a full redraw.
+   *
+   * Use case: during TUI app startup, many escape sequences arrive across
+   * multiple event loop ticks. Without freezing, each tick triggers a
+   * partial render — garbled status bars, scattered text. Freezing ensures
+   * the first visible frame shows the complete TUI.
+   */
+  freeze() {
+    this._renderingFrozen = !0;
+  }
+  /**
+   * Resume rendering after freeze(). Immediately performs a full redraw
+   * (forceAll=true) to paint the current WASM buffer state, then the
+   * render loop continues with normal dirty-row tracking.
+   */
+  unfreeze() {
+    this._renderingFrozen = !1, this.renderer && this.wasmTerm && this.isOpen && !this.isDisposed && this.renderer.render(this.wasmTerm, !0, this.viewportY, this, this.scrollbarOpacity);
   }
   /**
    * Reset renderer tracking state (cursor stability, viewport position).
@@ -3023,9 +3045,12 @@ class sA {
   startRenderLoop() {
     const A = () => {
       if (!this.isDisposed && this.isOpen) {
-        this.renderer.render(this.wasmTerm, !1, this.viewportY, this, this.scrollbarOpacity);
-        const B = this.wasmTerm.getCursor();
-        B.y !== this.lastCursorY && (this.lastCursorY = B.y, this.cursorMoveEmitter.fire()), this.animationFrameId = requestAnimationFrame(A);
+        if (!this._renderingFrozen) {
+          this.renderer.render(this.wasmTerm, !1, this.viewportY, this, this.scrollbarOpacity);
+          const B = this.wasmTerm.getCursor();
+          B.y !== this.lastCursorY && (this.lastCursorY = B.y, this.cursorMoveEmitter.fire());
+        }
+        this.animationFrameId = requestAnimationFrame(A);
       }
     };
     A();
@@ -3095,10 +3120,10 @@ class sA {
     else
       a = t + C;
     this.linkDetector.getLinkAt(g, a).then((N) => {
-      var c, Y, U, L;
+      var c, Y, U, n;
       if (!this.isDisposed && N !== this.currentHoveredLink && ((Y = (c = this.currentHoveredLink) == null ? void 0 : c.hover) == null || Y.call(c, !1), this.currentHoveredLink = N, (U = N == null ? void 0 : N.hover) == null || U.call(N, !0), this.element && (this.element.style.cursor = N ? "pointer" : "text"), this.renderer))
         if (N) {
-          const q = ((L = this.wasmTerm) == null ? void 0 : L.getScrollbackLength()) || 0, h = this.getViewportY(), e = Math.max(0, Math.floor(h)), J = N.range.start.y - q + e, F = N.range.end.y - q + e;
+          const q = ((n = this.wasmTerm) == null ? void 0 : n.getScrollbackLength()) || 0, h = this.getViewportY(), e = Math.max(0, Math.floor(h)), J = N.range.start.y - q + e, F = N.range.end.y - q + e;
           J < this.rows && F >= 0 ? this.renderer.setHoveredLinkRange({
             startX: N.range.start.x,
             startY: Math.max(0, J),
