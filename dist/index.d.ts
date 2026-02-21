@@ -1660,6 +1660,7 @@ export declare class Terminal implements ITerminalCore {
     private isOpen;
     private isDisposed;
     private animationFrameId?;
+    private _renderingFrozen;
     private addons;
     private customKeyEventHandler?;
     private currentTitle;
@@ -1741,6 +1742,24 @@ export declare class Terminal implements ITerminalCore {
      * Reset terminal state
      */
     reset(): void;
+    /**
+     * Pause rendering. The render loop keeps running but skips all drawing.
+     * Writes via write() are still processed by the WASM parser (maintaining
+     * terminal state like alt-screen, cursor position, colors), but the canvas
+     * is not updated. Call unfreeze() to resume rendering with a full redraw.
+     *
+     * Use case: during TUI app startup, many escape sequences arrive across
+     * multiple event loop ticks. Without freezing, each tick triggers a
+     * partial render — garbled status bars, scattered text. Freezing ensures
+     * the first visible frame shows the complete TUI.
+     */
+    freeze(): void;
+    /**
+     * Resume rendering after freeze(). Immediately performs a full redraw
+     * (forceAll=true) to paint the current WASM buffer state, then the
+     * render loop continues with normal dirty-row tracking.
+     */
+    unfreeze(): void;
     /**
      * Reset renderer tracking state (cursor stability, viewport position).
      * Call this when switching providers or terminal contexts to prevent

@@ -141,7 +141,10 @@ const Z = class y {
   // Lifecycle
   // ==========================================================================
   write(A) {
-    const B = typeof A == "string" ? new TextEncoder().encode(A) : A, g = this.exports.ghostty_wasm_alloc_u8_array(B.length);
+    const B = typeof A == "string" ? new TextEncoder().encode(A) : A;
+    if (B.length === 0)
+      return;
+    const g = this.exports.ghostty_wasm_alloc_u8_array(B.length);
     new Uint8Array(this.memory.buffer).set(B, g), this.exports.ghostty_terminal_write(this.handle, g, B.length), this.exports.ghostty_wasm_free_u8_array(g, B.length);
   }
   resize(A, B) {
