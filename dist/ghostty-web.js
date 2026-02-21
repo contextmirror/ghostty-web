@@ -2834,13 +2834,14 @@ class sA {
     this.renderer && (this.renderer.forceFullRedraw(), this.wasmTerm && this.renderer.render(this.wasmTerm, !0, this.viewportY, this, this.scrollbarOpacity));
   }
   /**
-   * Force a full canvas resize + redraw cycle.
-   * This resets the canvas element dimensions, ctx.scale() for DPI, and
-   * does a forceAll render — exactly what happens during a window resize.
+   * Force a full canvas resize + redraw cycle, bypassing the dimension guard.
+   * Performs exactly what happens during a window resize: WASM terminal resize,
+   * canvas dimension reset (which resets ctx and forces browser repaint),
+   * ctx.scale() for DPI, and a forceAll render.
    * Use this after provider switches to fix stale canvas compositing.
    */
   refresh() {
-    this.renderer && this.wasmTerm && (this.renderer.resize(this.cols, this.rows), this.renderer.render(this.wasmTerm, !0, this.viewportY, this, this.scrollbarOpacity));
+    !this.renderer || !this.wasmTerm || !this.canvas || (this.renderer.resize(this.cols, this.rows), this.renderer.render(this.wasmTerm, !0, this.viewportY, this, this.scrollbarOpacity));
   }
   /**
    * Focus terminal input

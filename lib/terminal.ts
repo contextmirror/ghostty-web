@@ -818,18 +818,23 @@ export class Terminal implements ITerminalCore {
   }
 
   /**
-   * Force a full canvas resize + redraw cycle.
-   * This resets the canvas element dimensions, ctx.scale() for DPI, and
-   * does a forceAll render — exactly what happens during a window resize.
+   * Force a full canvas resize + redraw cycle, bypassing the dimension guard.
+   * Performs exactly what happens during a window resize: WASM terminal resize,
+   * canvas dimension reset (which resets ctx and forces browser repaint),
+   * ctx.scale() for DPI, and a forceAll render.
    * Use this after provider switches to fix stale canvas compositing.
    */
   refresh(): void {
-    if (this.renderer && this.wasmTerm) {
-      // Force renderer.resize() which sets canvas.width/height + ctx.scale()
-      this.renderer.resize(this.cols, this.rows);
-      // Full render on the fresh canvas context
-      this.renderer.render(this.wasmTerm, true, this.viewportY, this, this.scrollbarOpacity);
-    }
+    if (!this.renderer || !this.wasmTerm || !this.canvas) return;
+
+    // Force renderer resize — unconditionally resets canvas.width/height,
+    // applies DPI ctx.scale(), sets text context properties, and fills
+    // background. renderer.resize() has no dimension guard so it always
+    // executes, unlike terminal.resize() which skips when cols/rows match.
+    this.renderer.resize(this.cols, this.rows);
+
+    // Full render to repaint every cell on the fresh canvas context.
+    this.renderer.render(this.wasmTerm, true, this.viewportY, this, this.scrollbarOpacity);
   }
 
   /**

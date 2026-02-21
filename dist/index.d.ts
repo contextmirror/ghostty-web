@@ -1773,9 +1773,10 @@ export declare class Terminal implements ITerminalCore {
      */
     forceFullRedraw(): void;
     /**
-     * Force a full canvas resize + redraw cycle.
-     * This resets the canvas element dimensions, ctx.scale() for DPI, and
-     * does a forceAll render — exactly what happens during a window resize.
+     * Force a full canvas resize + redraw cycle, bypassing the dimension guard.
+     * Performs exactly what happens during a window resize: WASM terminal resize,
+     * canvas dimension reset (which resets ctx and forces browser repaint),
+     * ctx.scale() for DPI, and a forceAll render.
      * Use this after provider switches to fix stale canvas compositing.
      */
     refresh(): void;
