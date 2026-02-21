@@ -322,6 +322,17 @@ export class CanvasRenderer {
       this.lastViewportY = viewportY;
     }
 
+    // When doing a full redraw, clear the entire canvas first to remove
+    // any stale pixels from previous renders (e.g., after screen clear,
+    // alternate screen exit, or provider switch). Individual renderLine()
+    // calls only clear their own row background, leaving gaps if row
+    // geometry changed.
+    if (forceAll) {
+      this.ctx.clearRect(0, 0, cssWidth, cssHeight);
+      this.ctx.fillStyle = this.theme.background;
+      this.ctx.fillRect(0, 0, cssWidth, cssHeight);
+    }
+
     // Cursor stability tracking — debounce cursor rendering to prevent
     // ghost artifacts during rapid TUI updates (e.g. Claude Code updating
     // status bar, input field, and content area in a single frame).

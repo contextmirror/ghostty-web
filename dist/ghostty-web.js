@@ -1651,7 +1651,7 @@ const V = {
     const I = A.getCursor(), D = A.getDimensions(), o = E ? E.getScrollbackLength() : 0;
     (q = A.needsFullRedraw) != null && q.call(A) && (B = !0), (this.canvas.width !== D.cols * this.metrics.width * this.devicePixelRatio || this.canvas.height !== D.rows * this.metrics.height * this.devicePixelRatio) && (this.resize(D.cols, D.rows), B = !0);
     const s = D.cols * this.metrics.width, t = D.rows * this.metrics.height;
-    this.ctx.save(), this.ctx.beginPath(), this.ctx.rect(0, 0, s, t), this.ctx.clip(), g !== this.lastViewportY && (B = !0, this.lastViewportY = g);
+    this.ctx.save(), this.ctx.beginPath(), this.ctx.rect(0, 0, s, t), this.ctx.clip(), g !== this.lastViewportY && (B = !0, this.lastViewportY = g), B && (this.ctx.clearRect(0, 0, s, t), this.ctx.fillStyle = this.theme.background, this.ctx.fillRect(0, 0, s, t));
     const a = I.x !== this.lastCursorPosition.x || I.y !== this.lastCursorPosition.y;
     if (a) {
       if (this.cursorStableFrames = 0, !B && !A.isRowDirty(this.lastCursorPosition.y)) {
