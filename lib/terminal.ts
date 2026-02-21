@@ -718,18 +718,47 @@ export class Terminal implements ITerminalCore {
   reset(): void {
     this.assertOpen();
 
-    // Free old WASM terminal and create new one
+    // 1. Stop the render loop BEFORE freeing the WASM terminal.
+    //    The rAF loop closure reads this.wasmTerm — if it fires between
+    //    free() and createTerminal(), it reads freed memory.
+    if (this.animationFrameId) {
+      cancelAnimationFrame(this.animationFrameId);
+      this.animationFrameId = undefined;
+    }
+
+    // 2. Free old WASM terminal
     if (this.wasmTerm) {
       this.wasmTerm.free();
+      this.wasmTerm = undefined as any;
     }
+
+    // 3. Create new WASM terminal
     const config = this.buildWasmConfig();
     this.wasmTerm = this.ghostty!.createTerminal(this.cols, this.rows, config);
 
-    // Clear renderer
+    // 4. Reset ALL renderer state — canvas pixels + tracking variables.
+    //    clear() only resets pixels; resetRendererState() resets cursor
+    //    position, viewport tracking, hyperlink hover, etc.
     this.renderer!.clear();
+    this.renderer!.resetRendererState();
 
-    // Reset title
+    // 5. Cancel any in-flight scroll animation
+    if (this.scrollAnimationFrame) {
+      cancelAnimationFrame(this.scrollAnimationFrame);
+      this.scrollAnimationFrame = undefined;
+      this.scrollAnimationStartTime = undefined;
+    }
+
+    // 6. Reset terminal-level tracking state
     this.currentTitle = '';
+    this.viewportY = 0;
+    this.targetViewportY = 0;
+    this.userScrolledUp = false;
+    this.lastCursorY = 0;
+    this.scrollbarOpacity = 0;
+
+    // 7. Restart the render loop with fresh closure over new wasmTerm
+    this.startRenderLoop();
   }
 
   /**

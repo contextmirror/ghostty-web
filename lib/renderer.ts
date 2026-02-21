@@ -1063,9 +1063,13 @@ export class CanvasRenderer {
   public resetRendererState(): void {
     this.cursorStableFrames = 3; // Start stable so cursor shows immediately
     this.lastViewportY = 0;
-    if (this.lastCursorPosition) {
-      this.lastCursorPosition = { x: 0, y: 0 };
-    }
+    this.lastCursorPosition = { x: 0, y: 0 };
+    this.hoveredHyperlinkId = 0;
+    this.previousHoveredHyperlinkId = 0;
+    this.hoveredLinkRange = null;
+    this.previousHoveredLinkRange = null;
+    this.currentSelectionCoords = null;
+    this.currentBuffer = null;
   }
 
   /**

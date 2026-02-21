@@ -1987,7 +1987,7 @@ const V = {
    * stale cursor/viewport state from causing rendering artifacts.
    */
   resetRendererState() {
-    this.cursorStableFrames = 3, this.lastViewportY = 0, this.lastCursorPosition && (this.lastCursorPosition = { x: 0, y: 0 });
+    this.cursorStableFrames = 3, this.lastViewportY = 0, this.lastCursorPosition = { x: 0, y: 0 }, this.hoveredHyperlinkId = 0, this.previousHoveredHyperlinkId = 0, this.hoveredLinkRange = null, this.previousHoveredLinkRange = null, this.currentSelectionCoords = null, this.currentBuffer = null;
   }
   /**
    * Force a full canvas clear and redraw on the next render frame.
@@ -2788,9 +2788,9 @@ class sA {
    * Reset terminal state
    */
   reset() {
-    this.assertOpen(), this.wasmTerm && this.wasmTerm.free();
+    this.assertOpen(), this.animationFrameId && (cancelAnimationFrame(this.animationFrameId), this.animationFrameId = void 0), this.wasmTerm && (this.wasmTerm.free(), this.wasmTerm = void 0);
     const A = this.buildWasmConfig();
-    this.wasmTerm = this.ghostty.createTerminal(this.cols, this.rows, A), this.renderer.clear(), this.currentTitle = "";
+    this.wasmTerm = this.ghostty.createTerminal(this.cols, this.rows, A), this.renderer.clear(), this.renderer.resetRendererState(), this.scrollAnimationFrame && (cancelAnimationFrame(this.scrollAnimationFrame), this.scrollAnimationFrame = void 0, this.scrollAnimationStartTime = void 0), this.currentTitle = "", this.viewportY = 0, this.targetViewportY = 0, this.userScrolledUp = !1, this.lastCursorY = 0, this.scrollbarOpacity = 0, this.startRenderLoop();
   }
   /**
    * Reset renderer tracking state (cursor stability, viewport position).
