@@ -818,6 +818,21 @@ export class Terminal implements ITerminalCore {
   }
 
   /**
+   * Force a full canvas resize + redraw cycle.
+   * This resets the canvas element dimensions, ctx.scale() for DPI, and
+   * does a forceAll render — exactly what happens during a window resize.
+   * Use this after provider switches to fix stale canvas compositing.
+   */
+  refresh(): void {
+    if (this.renderer && this.wasmTerm) {
+      // Force renderer.resize() which sets canvas.width/height + ctx.scale()
+      this.renderer.resize(this.cols, this.rows);
+      // Full render on the fresh canvas context
+      this.renderer.render(this.wasmTerm, true, this.viewportY, this, this.scrollbarOpacity);
+    }
+  }
+
+  /**
    * Focus terminal input
    */
   focus(): void {
