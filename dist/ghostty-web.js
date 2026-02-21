@@ -2438,7 +2438,7 @@ class sA {
       get activeVersion() {
         return "15.1";
       }
-    }, this.dataEmitter = new r(), this.resizeEmitter = new r(), this.bellEmitter = new r(), this.selectionChangeEmitter = new r(), this.keyEmitter = new r(), this.titleChangeEmitter = new r(), this.scrollEmitter = new r(), this.renderEmitter = new r(), this.cursorMoveEmitter = new r(), this.onData = this.dataEmitter.event, this.onResize = this.resizeEmitter.event, this.onBell = this.bellEmitter.event, this.onSelectionChange = this.selectionChangeEmitter.event, this.onKey = this.keyEmitter.event, this.onTitleChange = this.titleChangeEmitter.event, this.onScroll = this.scrollEmitter.event, this.onRender = this.renderEmitter.event, this.onCursorMove = this.cursorMoveEmitter.event, this.isOpen = !1, this.isDisposed = !1, this._renderingFrozen = !1, this.addons = [], this.currentTitle = "", this.viewportY = 0, this.targetViewportY = 0, this.userScrolledUp = !1, this.lastCursorY = 0, this.isDraggingScrollbar = !1, this.scrollbarDragStart = null, this.scrollbarDragStartViewportY = 0, this.scrollbarVisible = !1, this.scrollbarOpacity = 0, this.SCROLLBAR_HIDE_DELAY_MS = 1500, this.SCROLLBAR_FADE_DURATION_MS = 200, this.animateScroll = () => {
+    }, this.dataEmitter = new r(), this.resizeEmitter = new r(), this.bellEmitter = new r(), this.selectionChangeEmitter = new r(), this.keyEmitter = new r(), this.titleChangeEmitter = new r(), this.scrollEmitter = new r(), this.renderEmitter = new r(), this.cursorMoveEmitter = new r(), this.onData = this.dataEmitter.event, this.onResize = this.resizeEmitter.event, this.onBell = this.bellEmitter.event, this.onSelectionChange = this.selectionChangeEmitter.event, this.onKey = this.keyEmitter.event, this.onTitleChange = this.titleChangeEmitter.event, this.onScroll = this.scrollEmitter.event, this.onRender = this.renderEmitter.event, this.onCursorMove = this.cursorMoveEmitter.event, this.isOpen = !1, this.isDisposed = !1, this._renderingFrozen = !1, this._forceAllFrames = 0, this.addons = [], this.currentTitle = "", this.viewportY = 0, this.targetViewportY = 0, this.userScrolledUp = !1, this.lastCursorY = 0, this.isDraggingScrollbar = !1, this.scrollbarDragStart = null, this.scrollbarDragStartViewportY = 0, this.scrollbarVisible = !1, this.scrollbarOpacity = 0, this.SCROLLBAR_HIDE_DELAY_MS = 1500, this.SCROLLBAR_FADE_DURATION_MS = 200, this.animateScroll = () => {
       if (!this.wasmTerm || this.scrollAnimationStartTime === void 0)
         return;
       const g = this.options.smoothScrollDuration ?? 100, E = this.targetViewportY - this.viewportY;
@@ -2793,7 +2793,7 @@ class sA {
   reset() {
     this.assertOpen(), this.animationFrameId && (cancelAnimationFrame(this.animationFrameId), this.animationFrameId = void 0), this.wasmTerm && (this.wasmTerm.free(), this.wasmTerm = void 0);
     const A = this.buildWasmConfig();
-    this.wasmTerm = this.ghostty.createTerminal(this.cols, this.rows, A), this.renderer.clear(), this.renderer.resetRendererState(), this.scrollAnimationFrame && (cancelAnimationFrame(this.scrollAnimationFrame), this.scrollAnimationFrame = void 0, this.scrollAnimationStartTime = void 0), this.currentTitle = "", this.viewportY = 0, this.targetViewportY = 0, this.userScrolledUp = !1, this.lastCursorY = 0, this.scrollbarOpacity = 0, this._renderingFrozen = !1, this.startRenderLoop();
+    this.wasmTerm = this.ghostty.createTerminal(this.cols, this.rows, A), this.renderer.resize(this.cols, this.rows), this.renderer.resetRendererState(), this.scrollAnimationFrame && (cancelAnimationFrame(this.scrollAnimationFrame), this.scrollAnimationFrame = void 0, this.scrollAnimationStartTime = void 0), this.currentTitle = "", this.viewportY = 0, this.targetViewportY = 0, this.userScrolledUp = !1, this.lastCursorY = 0, this.scrollbarOpacity = 0, this._renderingFrozen = !1, this._forceAllFrames = 30, this.startRenderLoop();
   }
   /**
    * Pause rendering. The render loop keeps running but skips all drawing.
@@ -3059,9 +3059,10 @@ class sA {
     const A = () => {
       if (!this.isDisposed && this.isOpen) {
         if (!this._renderingFrozen) {
-          this.renderer.render(this.wasmTerm, !1, this.viewportY, this, this.scrollbarOpacity);
-          const B = this.wasmTerm.getCursor();
-          B.y !== this.lastCursorY && (this.lastCursorY = B.y, this.cursorMoveEmitter.fire());
+          const B = this._forceAllFrames > 0;
+          B && this._forceAllFrames--, this.renderer.render(this.wasmTerm, B, this.viewportY, this, this.scrollbarOpacity);
+          const g = this.wasmTerm.getCursor();
+          g.y !== this.lastCursorY && (this.lastCursorY = g.y, this.cursorMoveEmitter.fire());
         }
         this.animationFrameId = requestAnimationFrame(A);
       }

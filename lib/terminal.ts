@@ -102,6 +102,7 @@ export class Terminal implements ITerminalCore {
   private isDisposed = false;
   private animationFrameId?: number;
   private _renderingFrozen: boolean = false;
+  private _forceAllFrames: number = 0;
 
   // Addons
   private addons: ITerminalAddon[] = [];
@@ -737,10 +738,15 @@ export class Terminal implements ITerminalCore {
     const config = this.buildWasmConfig();
     this.wasmTerm = this.ghostty!.createTerminal(this.cols, this.rows, config);
 
-    // 4. Reset ALL renderer state — canvas pixels + tracking variables.
-    //    clear() only resets pixels; resetRendererState() resets cursor
-    //    position, viewport tracking, hyperlink hover, etc.
-    this.renderer!.clear();
+    // 4. Reset ALL renderer state.
+    //    renderer.resize() unconditionally resets canvas.width/height (which
+    //    invalidates the browser's compositing layer — same as a window resize),
+    //    re-applies DPI ctx.scale(), sets text context properties, and fills
+    //    the background. This is what open() does via the Renderer constructor.
+    //    Without it, the browser can cache the old compositing layer and show
+    //    stale pixels even though the canvas buffer was updated.
+    //    resetRendererState() resets cursor tracking, viewport position, etc.
+    this.renderer!.resize(this.cols, this.rows);
     this.renderer!.resetRendererState();
 
     // 5. Cancel any in-flight scroll animation
@@ -759,7 +765,15 @@ export class Terminal implements ITerminalCore {
     this.scrollbarOpacity = 0;
     this._renderingFrozen = false;
 
-    // 7. Restart the render loop with fresh closure over new wasmTerm
+    // 7. Force full redraws for the first 30 frames (~500ms at 60fps).
+    //    During TUI startup, content arrives across many event loop ticks.
+    //    Dirty-row tracking can miss cells when the TUI overwrites content
+    //    rapidly (e.g., clearing + redrawing status bars). ForceAll ensures
+    //    every frame is a complete repaint — identical to initial startup
+    //    where the canvas starts blank and every pixel is fresh.
+    this._forceAllFrames = 30;
+
+    // 8. Restart the render loop with fresh closure over new wasmTerm
     this.startRenderLoop();
   }
 
@@ -1266,12 +1280,17 @@ export class Terminal implements ITerminalCore {
     const loop = () => {
       if (!this.isDisposed && this.isOpen) {
         if (!this._renderingFrozen) {
-          // Render using WASM's native dirty tracking
+          // After reset(), force full redraws for _forceAllFrames frames
+          // to ensure the new TUI renders cleanly during its startup burst.
+          const forceAll = this._forceAllFrames > 0;
+          if (forceAll) this._forceAllFrames--;
+
+          // Render using WASM's native dirty tracking (or forceAll after reset)
           // The render() method:
           // 1. Calls update() once to sync state and check dirty flags
           // 2. Only redraws dirty rows when forceAll=false
           // 3. Always calls clearDirty() at the end
-          this.renderer!.render(this.wasmTerm!, false, this.viewportY, this, this.scrollbarOpacity);
+          this.renderer!.render(this.wasmTerm!, forceAll, this.viewportY, this, this.scrollbarOpacity);
 
           // Check for cursor movement (Phase 2: onCursorMove event)
           // Note: getCursor() reads from already-updated render state (from render() above)

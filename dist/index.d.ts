@@ -1661,6 +1661,7 @@ export declare class Terminal implements ITerminalCore {
     private isDisposed;
     private animationFrameId?;
     private _renderingFrozen;
+    private _forceAllFrames;
     private addons;
     private customKeyEventHandler?;
     private currentTitle;
