@@ -17,6 +17,7 @@
 
 import { BufferNamespace } from './buffer';
 import { EventEmitter } from './event-emitter';
+import { DirtyState } from './ghostty';
 import type { Ghostty, GhosttyCell, GhosttyTerminal, GhosttyTerminalConfig } from './ghostty';
 import { getGhostty } from './index';
 import { InputHandler, type MouseTrackingConfig } from './input-handler';
@@ -103,6 +104,15 @@ export class Terminal implements ITerminalCore {
   private animationFrameId?: number;
   private _renderingFrozen: boolean = false;
   private _forceAllFrames: number = 0;
+
+  // ForceAll-Until-Quiet: demand-driven full redraws after reset()
+  // Instead of a fixed frame counter, keeps forcing full redraws until
+  // the WASM buffer reports no dirty rows for QUIET_THRESHOLD consecutive
+  // frames (~83ms of silence at 60fps), reliably indicating TUI startup
+  // is complete.
+  private _forceAllUntilQuiet: boolean = false;
+  private _quietFrames: number = 0;
+  private static readonly QUIET_THRESHOLD = 5;
 
   // Addons
   private addons: ITerminalAddon[] = [];
@@ -738,6 +748,33 @@ export class Terminal implements ITerminalCore {
     const config = this.buildWasmConfig();
     this.wasmTerm = this.ghostty!.createTerminal(this.cols, this.rows, config);
 
+    // 3b. Update stale wasmTerm references in SelectionManager and InputHandler.
+    //     These components capture wasmTerm at construction time. After reset(),
+    //     their old references point to freed WASM memory. Without this update,
+    //     selection text extraction and mouse tracking queries would be unreliable.
+    if (this.selectionManager) {
+      this.selectionManager.updateWasmTerm(this.wasmTerm);
+    }
+    if (this.inputHandler && this.renderer && this.canvas) {
+      // Rebuild mouseConfig closures to close over the new wasmTerm
+      const wasmTerm = this.wasmTerm;
+      const renderer = this.renderer;
+      const canvas = this.canvas;
+      const mouseConfig: MouseTrackingConfig = {
+        hasMouseTracking: () => wasmTerm?.hasMouseTracking() ?? false,
+        hasSgrMouseMode: () => wasmTerm?.getMode(1006, false) ?? true,
+        getCellDimensions: () => ({
+          width: renderer.charWidth,
+          height: renderer.charHeight,
+        }),
+        getCanvasOffset: () => {
+          const rect = canvas.getBoundingClientRect();
+          return { left: rect.left, top: rect.top };
+        },
+      };
+      this.inputHandler.updateMouseConfig(mouseConfig);
+    }
+
     // 4. Reset ALL renderer state.
     //    renderer.resize() unconditionally resets canvas.width/height (which
     //    invalidates the browser's compositing layer — same as a window resize),
@@ -765,13 +802,16 @@ export class Terminal implements ITerminalCore {
     this.scrollbarOpacity = 0;
     this._renderingFrozen = false;
 
-    // 7. Force full redraws for the first 30 frames (~500ms at 60fps).
+    // 7. Force full redraws until the TUI settles (ForceAll-Until-Quiet).
     //    During TUI startup, content arrives across many event loop ticks.
     //    Dirty-row tracking can miss cells when the TUI overwrites content
     //    rapidly (e.g., clearing + redrawing status bars). ForceAll ensures
-    //    every frame is a complete repaint — identical to initial startup
-    //    where the canvas starts blank and every pixel is fresh.
-    this._forceAllFrames = 30;
+    //    every frame is a complete repaint. Instead of a fixed frame count
+    //    (which expires too early for slow-starting TUIs), we keep forcing
+    //    until the WASM buffer reports no dirty rows for QUIET_THRESHOLD
+    //    consecutive frames (~83ms of silence at 60fps).
+    this._forceAllUntilQuiet = true;
+    this._quietFrames = 0;
 
     // 8. Restart the render loop with fresh closure over new wasmTerm
     this.startRenderLoop();
@@ -849,6 +889,20 @@ export class Terminal implements ITerminalCore {
 
     // Full render to repaint every cell on the fresh canvas context.
     this.renderer.render(this.wasmTerm, true, this.viewportY, this, this.scrollbarOpacity);
+  }
+
+  /**
+   * Force all rows dirty in the WASM terminal, guaranteeing a full repaint
+   * on the next render frame. Unlike refresh(), this does not trigger an
+   * immediate render — the render loop picks it up on the next animation frame.
+   *
+   * Use this from the host app after a provider switch or terminal reset
+   * when you know the content has changed but dirty-row tracking may have gaps.
+   */
+  forceDirty(): void {
+    if (this.wasmTerm) {
+      this.wasmTerm.forceDirty();
+    }
   }
 
   /**
@@ -1280,10 +1334,32 @@ export class Terminal implements ITerminalCore {
     const loop = () => {
       if (!this.isDisposed && this.isOpen) {
         if (!this._renderingFrozen) {
-          // After reset(), force full redraws for _forceAllFrames frames
-          // to ensure the new TUI renders cleanly during its startup burst.
-          const forceAll = this._forceAllFrames > 0;
+          // Determine if we need to force a full redraw this frame.
+          // Two mechanisms:
+          //   1. _forceAllFrames: fixed countdown (legacy, used by callers other than reset)
+          //   2. _forceAllUntilQuiet: demand-driven — keeps forcing until WASM reports
+          //      no dirty rows for QUIET_THRESHOLD consecutive frames (~83ms of silence)
+          let forceAll = this._forceAllFrames > 0;
           if (forceAll) this._forceAllFrames--;
+
+          if (this._forceAllUntilQuiet) {
+            // Peek at dirty state BEFORE render() consumes it.
+            // update() syncs the WASM RenderState and returns the dirty flag.
+            // It's safe to call multiple times — dirty persists until markClean().
+            const dirtyState = this.wasmTerm!.update();
+            const hasDirtyRows = dirtyState !== DirtyState.NONE;
+
+            if (hasDirtyRows) {
+              this._quietFrames = 0;
+            } else {
+              this._quietFrames++;
+              if (this._quietFrames >= Terminal.QUIET_THRESHOLD) {
+                this._forceAllUntilQuiet = false;
+                this._quietFrames = 0;
+              }
+            }
+            forceAll = true;
+          }
 
           // Render using WASM's native dirty tracking (or forceAll after reset)
           // The render() method:

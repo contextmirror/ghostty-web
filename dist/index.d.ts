@@ -303,6 +303,13 @@ export declare class GhosttyTerminal {
     get rows(): number;
     write(data: string | Uint8Array): void;
     resize(cols: number, rows: number): void;
+    /**
+     * Force all rows dirty by calling WASM resize with current dimensions.
+     * Bypasses the dimension guard in resize() — the WASM layer unconditionally
+     * sets DirtyState.FULL on ghostty_terminal_resize, which is exactly what we
+     * need after terminal reset or provider switch.
+     */
+    forceDirty(): void;
     free(): void;
     /**
      * Update render state from terminal.
@@ -767,6 +774,15 @@ export declare class InputHandler {
      * Set custom key event handler (for runtime updates)
      */
     setCustomKeyEventHandler(handler: (event: KeyboardEvent) => boolean): void;
+    /**
+     * Update the mouse tracking configuration after terminal reset.
+     * reset() frees the old WASM terminal and creates a new one, but
+     * the mouseConfig closures (hasMouseTracking, hasSgrMouseMode) close
+     * over the old wasmTerm reference from open(). Without this update,
+     * mouse tracking queries would return stale/unreliable values from
+     * freed WASM memory.
+     */
+    updateMouseConfig(mouseConfig: MouseTrackingConfig): void;
     /**
      * Attach keyboard event listeners to container
      */
@@ -1555,6 +1571,14 @@ export declare class SelectionManager {
      */
     get onSelectionChange(): IEvent<void>;
     /**
+     * Update the wasmTerm reference after terminal reset.
+     * reset() frees the old WASM terminal and creates a new one, but
+     * SelectionManager captures wasmTerm at construction time. Without
+     * this update, methods like getSelection() and getWordAtCell() would
+     * call into freed WASM memory.
+     */
+    updateWasmTerm(wasmTerm: GhosttyTerminal): void;
+    /**
      * Cleanup resources
      */
     dispose(): void;
@@ -1662,6 +1686,9 @@ export declare class Terminal implements ITerminalCore {
     private animationFrameId?;
     private _renderingFrozen;
     private _forceAllFrames;
+    private _forceAllUntilQuiet;
+    private _quietFrames;
+    private static readonly QUIET_THRESHOLD;
     private addons;
     private customKeyEventHandler?;
     private currentTitle;
@@ -1781,6 +1808,15 @@ export declare class Terminal implements ITerminalCore {
      * Use this after provider switches to fix stale canvas compositing.
      */
     refresh(): void;
+    /**
+     * Force all rows dirty in the WASM terminal, guaranteeing a full repaint
+     * on the next render frame. Unlike refresh(), this does not trigger an
+     * immediate render — the render loop picks it up on the next animation frame.
+     *
+     * Use this from the host app after a provider switch or terminal reset
+     * when you know the content has changed but dirty-row tracking may have gaps.
+     */
+    forceDirty(): void;
     /**
      * Focus terminal input
      */

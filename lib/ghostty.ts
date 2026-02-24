@@ -357,6 +357,16 @@ export class GhosttyTerminal {
     this.initCellPool();
   }
 
+  /**
+   * Force all rows dirty by calling WASM resize with current dimensions.
+   * Bypasses the dimension guard in resize() — the WASM layer unconditionally
+   * sets DirtyState.FULL on ghostty_terminal_resize, which is exactly what we
+   * need after terminal reset or provider switch.
+   */
+  forceDirty(): void {
+    this.exports.ghostty_terminal_resize(this.handle, this._cols, this._rows);
+  }
+
   free(): void {
     if (this.viewportBufferPtr) {
       this.exports.ghostty_wasm_free_u8_array(this.viewportBufferPtr, this.viewportBufferSize);

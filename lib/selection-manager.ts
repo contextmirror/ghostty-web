@@ -384,6 +384,17 @@ export class SelectionManager {
   }
 
   /**
+   * Update the wasmTerm reference after terminal reset.
+   * reset() frees the old WASM terminal and creates a new one, but
+   * SelectionManager captures wasmTerm at construction time. Without
+   * this update, methods like getSelection() and getWordAtCell() would
+   * call into freed WASM memory.
+   */
+  public updateWasmTerm(wasmTerm: GhosttyTerminal): void {
+    this.wasmTerm = wasmTerm;
+  }
+
+  /**
    * Cleanup resources
    */
   dispose(): void {

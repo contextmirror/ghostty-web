@@ -256,6 +256,18 @@ export class InputHandler {
   }
 
   /**
+   * Update the mouse tracking configuration after terminal reset.
+   * reset() frees the old WASM terminal and creates a new one, but
+   * the mouseConfig closures (hasMouseTracking, hasSgrMouseMode) close
+   * over the old wasmTerm reference from open(). Without this update,
+   * mouse tracking queries would return stale/unreliable values from
+   * freed WASM memory.
+   */
+  updateMouseConfig(mouseConfig: MouseTrackingConfig): void {
+    this.mouseConfig = mouseConfig;
+  }
+
+  /**
    * Attach keyboard event listeners to container
    */
   private attach(): void {
