@@ -214,7 +214,15 @@ export class Terminal implements ITerminalCore {
 
       case 'theme':
         if (this.renderer) {
-          console.warn('ghostty-web: theme changes after open() are not yet fully supported');
+          // Apply the new theme to the renderer (palette + background) and force
+          // a full repaint so the new background fills the whole canvas — not
+          // just cells drawn afterwards. Without the repaint, the previous
+          // background (the #1e1e1e default on cold start) lingers behind the
+          // content as a grey band.
+          this.renderer.setTheme(this.options.theme ?? {});
+          if (this.wasmTerm) {
+            this.renderer.render(this.wasmTerm, true, this.viewportY, this);
+          }
         }
         break;
 

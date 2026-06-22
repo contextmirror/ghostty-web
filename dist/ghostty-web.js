@@ -2602,7 +2602,7 @@ const P = class v {
           this.renderer && (this.renderer.setCursorStyle(this.options.cursorStyle), this.renderer.setCursorBlink(this.options.cursorBlink));
           break;
         case "theme":
-          this.renderer && console.warn("ghostty-web: theme changes after open() are not yet fully supported");
+          this.renderer && (this.renderer.setTheme(this.options.theme ?? {}), this.wasmTerm && this.renderer.render(this.wasmTerm, !0, this.viewportY, this));
           break;
         case "fontSize":
           this.renderer && (this.renderer.setFontSize(this.options.fontSize), this.handleFontChange());
